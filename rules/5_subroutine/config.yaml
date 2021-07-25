@@ -1,0 +1,4 @@
+output_path: analysis
+publish_path: publish
+metadata:
+traits_csv:

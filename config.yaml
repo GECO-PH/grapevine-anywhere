@@ -1,0 +1,90 @@
+##### Where is the data? #####
+GISAID_background_fasta: dummy_files/gisaid_background_fasta.fasta
+GISAID_background_metadata: dummy_files/gisaid_background_metadata.txt
+GISAID_background_expanded_metadata: dummy_files/gisaid_background_expanded_metadata.txt
+GISAID_background_expanded_fasta: dummy_files/gisaid_background_expanded_fasta.fasta
+gisaid_mask_file: resources/resources/mask.txt
+
+previous_uk_metadata: dummy_files/previous_uk_metadata.txt # NEEDED IN STEP 1
+
+latest_uk_fasta: dummy_files/latest_uk_fasta.fasta
+latest_uk_metadata: dummy_files/latest_uk_metadata.txt
+
+uk_omissions: dummy_files/uk_omissions.txt
+uk_updated_dates: dummy_files/uk_updated_dates.txt
+uk_mask_file: resources/resources/mask.txt
+
+redcap_access: redcap_api_url_and_key.txt
+
+output_path: output
+publish_path: publish
+export_path: publish/phylogenetics
+
+##### global lineage definitions #####
+global_lineages: dummy_files/global_lineages.txt
+
+##### Filter thresholds #####
+min_covg: 70
+min_length: 29000
+
+##### Mapping reference #####
+reference_fasta: reference.fasta
+reference_genbank_annotation: MN908947.gb
+
+##### Trim coordinates #####
+trim_start: 265
+trim_end: 29674
+
+##### Files of variants to search for #####
+snps: resources/resources/snps.csv
+dels: resources/resources/dels.csv
+
+##### AA file #####
+AAs: resources/resources/AAs.csv
+
+##### File of lineages to split by #####
+lineage_splits: resources/resources/lineage_splits.csv
+lineage_aliases: resources/resources/alias_key.json
+
+##### Outgroups #####
+outgroups_metadata: resources/resources/gisaid_outgroups/gisaid_outgroups.metadata.tsv
+outgroups_fasta: resources/resources/gisaid_outgroups/gisaid_outgroups.sequences.fasta
+
+##### Guide tree #####
+guide_tree: resources/resources/graft_guide.newick
+test_guide_tree: resources/resources/test_guide_tree/test_guide_tree.tree
+
+##### Date #####
+date:
+time_window: 99999
+
+##### Working directory #####
+cwd:
+
+##### Webhooks to push to #####
+grapevine_webhook:
+phylopipe_webhook:
+
+##### report latex template #####
+latex_template: resources/resources/latex_template.latex
+
+
+#### Keys added for making DAG/rulegraph ####
+latest_gisaid_json: data/gisaid_data/ncov_asia.json
+previous_omitted_file: dummy_files/previous_omitted_file.txt
+previous_gisaid_lineages: dummy_files/prev_gisaid_lineages.txt
+latest_uk_accessions: dummy_files/latest_uk_accessions.txt
+json_path: dummy_files/
+GISAID_variants: dummy_files/gisaid_variants.txt
+MINK_variants: dummy_files/mink_variants.txt
+phylopipe_token: dummy_files/phylopipe_token.txt
+
+
+#### Keys added for adapting grapevine for RITM Coronavirus project ####
+gisaid_fasta: data/gisaid_data/ncov_asia.fasta
+gisaid_meta: data/gisaid_data/ncov_asia.tsv
+
+#### Keys for Testing Rule 2 ####
+lineageless: /0/gisaid.all.lineageless.fasta
+rule_2_meta: /0/gisaid.all.csv
+all_fasta: /0/gisaid.all.fasta
