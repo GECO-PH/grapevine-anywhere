@@ -33,9 +33,9 @@ with open((os.getcwd()+"/"+(config["lineage_splits"]))) as lineage_fh:
 #        curl -X POST -H "Content-type: application/json" -d @{params.json_path}/4a_data.json {params.grapevine_webhook}
 rule split_based_on_lineages:
     input:
-        previous_stage = config["output_path"] + "/logs/3_summarize_combine_gisaid_and_cog.log",
-        fasta = config["output_path"] + "/3/cog_gisaid.fasta",
-        metadata = config["output_path"] + "/3/cog_gisaid.lineages.csv",
+        previous_stage = config["output_path"] + "/logs/3_summarize_combine_gisaid_and_redcap.log",
+        fasta = config["output_path"] + "/3/redcap_gisaid.fasta",
+        metadata = config["output_path"] + "/3/redcap_gisaid.lineages.csv",
         lineage = config["lineage_splits"],
         aliases = config["lineage_aliases"]
     params:
@@ -45,8 +45,9 @@ rule split_based_on_lineages:
 #        date = config["date"]
     output:
 #        done=temp(config["output_path"] + "/4/split_done"),
-        lineage_fastas = [config["output_path"] + "/4/lineage_%s.fasta" % l for l in LINEAGES],
-    resources: mem_per_cpu=20000
+        lineage_fastas = [config["output_path"] + "/4/lineage_%s.fasta" % l for l in LINEAGES]
+    resources: 
+        mem_per_cpu=20000
     log:
         config["output_path"] + "/logs/4_split_based_on_lineages.log"
     shell:
@@ -68,12 +69,13 @@ rule fasttree:
         split_done = rules.split_based_on_lineages.log,
         lineage_fasta = config["output_path"] + "/4/lineage_{lineage}.fasta"
     params:
-        lineage = "{lineage}",
+        lineage = "{lineage}"
     output:
-        tree = config["output_path"] + "/4/{lineage}/cog_gisaid_{lineage}.unrooted.tree",
+        tree = config["output_path"] + "/4/{lineage}/redcap_gisaid_{lineage}.unrooted.tree"
     log:
         config["output_path"] + "/logs/4_fasttree_{lineage}.log"
-    resources: mem_per_cpu=20000 # 10gb * 4 threads * 4 lineages = 160gb < 192gb
+    resources: 
+        mem_per_cpu=20000 # 10gb * 4 threads * 4 lineages = 160gb < 192gb
     threads: 3
     shell:
         """
@@ -87,15 +89,16 @@ rule fasttree:
 
 rule root_tree:
     input:
-        tree = config["output_path"] + "/4/{lineage}/cog_gisaid_{lineage}.unrooted.tree",
+        tree = config["output_path"] + "/4/{lineage}/redcap_gisaid_{lineage}.unrooted.tree"
     params:
         lineage = "{lineage}",
         outgroup = lambda wildcards: lineage_to_outgroup_map[wildcards.lineage]
     output:
-        tree = config["output_path"] + "/4/{lineage}/cog_gisaid_{lineage}.tree",
+        tree = config["output_path"] + "/4/{lineage}/redcap_gisaid_{lineage}.tree"
     log:
-        config["output_path"] + "/logs/4_root_tree_{lineage}.log",
-    resources: mem_per_cpu=20000
+        config["output_path"] + "/logs/4_root_tree_{lineage}.log"
+    resources: 
+        mem_per_cpu=20000
     shell:
         """
         echo "{params.lineage} {params.outgroup}"
@@ -108,18 +111,20 @@ rule root_tree:
         """
 
 
+#need to check that current test guide tree is okay so i can rename it as just guide tree
 rule graft:
     input:
         # not sure how to pass this as a space separated list below. Also assuming the order here matches lineages
-        scions = expand(config["output_path"] + "/4/{lineage}/cog_gisaid_{lineage}.tree", lineage=sorted(LINEAGES)),
+        scions = expand(config["output_path"] + "/4/{lineage}/redcap_gisaid_{lineage}.tree", lineage=sorted(LINEAGES)),
         guide_tree = config["test_guide_tree"]
     params:
-        lineages = sorted(LINEAGES),
+        lineages = sorted(LINEAGES)
     output:
-        grafted_tree = config["output_path"] + '/4/cog_gisaid_grafted.tree',
+        grafted_tree = config["output_path"] + '/4/redcap_gisaid_grafted.tree'
     log:
-        config["output_path"] + "/logs/4_graft.log",
-    resources: mem_per_cpu=20000
+        config["output_path"] + "/logs/4_graft.log"
+    resources: 
+        mem_per_cpu=20000
     run:
         if len(input.scions) > 1:
             shell("""
@@ -147,15 +152,16 @@ rule graft:
 #redundant fastas (containing same seq but diff header)
 #are removed for tree building but then alias headers
 #are added back to the tree
-rule insert_cog_seqs:
+rule insert_redcap_seqs:
     input:
         grafted_tree = rules.graft.output.grafted_tree,
-        metadata = rules.cog_hash_seqs.output.metadata
+        metadata = rules.redcap_hash_seqs.output.metadata
     output:
-        grafted_tree_expanded_cog = config["output_path"] + '/4/cog_gisaid_grafted.cog_expanded.tree'
+        grafted_tree_expanded_redcap = config["output_path"] + '/4/redcap_gisaid_grafted.redcap_expanded.tree'
     log:
-        config["output_path"] + "/logs/4_replace_cog_seqs.log"
-    resources: mem_per_cpu=20000
+        config["output_path"] + "/logs/4_replace_redcap_seqs.log"
+    resources: 
+        mem_per_cpu=20000
     shell:
         """
         sed -i.bak "s/'//g" {input.grafted_tree} 2> {log}
@@ -165,21 +171,22 @@ rule insert_cog_seqs:
             --metadata {input.metadata} \
             --unique-only \
             --format newick \
-            -o {output.grafted_tree_expanded_cog} 2>> {log}
+            -o {output.grafted_tree_expanded_redcap} 2>> {log}
         """
 
 
 rule sort_collapse:
     input:
-        expanded_tree = rules.insert_cog_seqs.output.grafted_tree_expanded_cog
+        expanded_tree = rules.insert_redcap_seqs.output.grafted_tree_expanded_redcap
     output:
-        sorted_tree = config["output_path"] + '/4/cog_gisaid_grafted.sorted.tree',
-        sorted_collapsed_tree = config["output_path"] + '/4/cog_gisaid_full.tree.public.newick'
+        sorted_tree = config["output_path"] + '/4/redcap_gisaid_grafted.sorted.tree',
+        sorted_collapsed_tree = config["output_path"] + '/4/redcap_gisaid_full.tree.public.newick'
     params:
         collapse=0.000005
     log:
         config["output_path"] + "/logs/4_sort_collapse.log"
-    resources: mem_per_cpu=20000
+    resources: 
+        mem_per_cpu=20000
     shell:
         """
         gotree rotate sort -i {input.expanded_tree} -o {output.sorted_tree} &> {log}
@@ -187,27 +194,33 @@ rule sort_collapse:
         """
 
 
-#should uk_lineage still be used?
-#try and change to philippines
 #also need to make sure redcap data was integrated correctly
-#this uses the expanded combined. why?
+#this uses the expanded combined so that redundant/alias sequence names are added to the same tip
+#separate capitalised country param defined as regex is case sensitive
+#yes, i know it looks silly
+#BIG BUG: for some reason, lineage trait in philippines tips are pango version dates rather than pango lineage
 rule step_4_annotate_tree:
     input:
         tree = rules.sort_collapse.output.sorted_collapsed_tree,
-        metadata = config["output_path"] + "/3/cog_gisaid.lineages.expanded.csv"
+        metadata = config["output_path"] + "/3/redcap_gisaid.lineages.expanded.csv"
+    params:
+        country_code = config["country_code"],
+        country = config["country"],
+        country_capitalised = config["country"].capitalize()
     output:
-        tree = config["output_path"] + "/4/cog_gisaid_grafted.annotated.tree"
+        tree = config["output_path"] + "/4/redcap_gisaid_grafted.annotated.tree"
     log:
         config["output_path"] + "/logs/4_annotate_tree.log"
-    resources: mem_per_cpu=20000
+    resources: 
+        mem_per_cpu=20000
     shell:
         """
         clusterfunk annotate_tips \
           --in-metadata {input.metadata} \
-          --trait-columns country lineage uk_lineage \
+          --trait-columns country lineage {params.country_code}_lineage \
           --index-column strain \
-          --boolean-for-trait country='Philippines' country='Philippines' \
-          --boolean-trait-names country_philippines country_philippines_deltran \
+          --boolean-for-trait country='{params.country_capitalised}' country='{params.country_capitalised}' \
+          --boolean-trait-names country_{params.country} country_{params.country}_deltran \
           --in-format newick \
           --out-format nexus \
           --input {input.tree} \
@@ -233,18 +246,22 @@ rule step_4_annotate_tree:
 #         """
 
 
+#COUNTRYHERE
 rule deltran_ancestral_reconstruction:
     input:
         tree = rules.step_4_annotate_tree.output.tree
+    params:
+        country = config["country"]
     output:
-        tree = config["output_path"] + "/4/cog_gisaid_grafted.annotated.del.tree"
+        tree = config["output_path"] + "/4/redcap_gisaid_grafted.annotated.del.tree"
     log:
         config["output_path"] + "/logs/4_deltran_ancestral_reconstruction.log"
-    resources: mem_per_cpu=20000
+    resources: 
+        mem_per_cpu=20000
     shell:
         """
         clusterfunk ancestral_reconstruction \
-        --traits country_philippines_deltran \
+        --traits country_{params.country}_deltran \
         --deltran \
         --ancestral-state False \
         --input {input.tree} \
@@ -276,15 +293,18 @@ rule deltran_ancestral_reconstruction:
 rule label_deltran_introductions:
     input:
         tree = rules.deltran_ancestral_reconstruction.output.tree
+    params:
+        country = config["country"]
     output:
-        tree = config["output_path"] + "/4/cog_gisaid_grafted.annotated.del.del_labelled.tree"
+        tree = config["output_path"] + "/4/redcap_gisaid_grafted.annotated.del.del_labelled.tree"
     log:
         config["output_path"] + "/logs/4_label_deltran_introductions.log"
-    resources: mem_per_cpu=20000
+    resources: 
+        mem_per_cpu=20000
     shell:
         """
         clusterfunk label_transitions \
-          --trait country_philippines_deltran \
+          --trait country_{params.country}_deltran \
           --to True \
           --transition-name del_introduction \
           --transition-prefix del_trans_ \
@@ -316,12 +336,13 @@ rule merge_sibling_del_introduction:
     input:
         tree = rules.label_deltran_introductions.output.tree
     params:
-        outdir = config["publish_path"] + "/COG_GISAID",
+        outdir = config["publish_path"] + "/REDCAP_GISAID"
     output:
-        tree = config["output_path"] + "/4/cog_gisaid_grafted.annotated.del.del_labelled.del_merged.tree"
+        tree = config["output_path"] + "/4/redcap_gisaid_grafted.annotated.del.del_labelled.del_merged.tree"
     log:
         config["output_path"] + "/logs/4_merge_deltran_introductions.log"
-    resources: mem_per_cpu=20000
+    resources: 
+        mem_per_cpu=20000
     shell:
         """
         clusterfunk merge_transitions \
@@ -337,29 +358,33 @@ rule merge_sibling_del_introduction:
 
 rule output_annotations:
     input:
-        tree = rules.merge_sibling_del_introduction.output.tree,
+        tree = rules.merge_sibling_del_introduction.output.tree
+    params:
+        country_code = config["country_code"]
     output:
         traits = config["output_path"] + "/4/all_traits.csv"
     log:
         config["output_path"] + "/logs/4_output_annotations.log"
-    resources: mem_per_cpu=20000
+    resources: 
+        mem_per_cpu=20000
     shell:
         """
         clusterfunk extract_tip_annotations \
-          --traits country uk_lineage del_introduction del_lineage \
+          --traits country {params.country_code}_lineage del_introduction del_lineage \
           --input {input.tree} \
           --output {output.traits} &> {log}
         """
 
 
-#currently all_traits file will have an empty uk_lineage column
-#this will be replaced with ph_lineage for now
-#ph_lineage will be based on del_lineage column
+#currently all_traits file will have an empty country lineage column
+#country lineage will be based on del_lineage column
 rule add_lin_to_annotations:
     input:
         traits = rules.output_annotations.output.traits
+    params:
+        country_code = config["country_code"]
     output:
-        traits = config["output_path"] + "/4/all_traits.ph_lin.csv"
+        traits = config["output_path"] + "/4/all_traits.redcap_lin.csv"
     log:
         config["output_path"] + "/logs/4_add_lin_to_annotations.log"
     run:
@@ -368,9 +393,8 @@ rule add_lin_to_annotations:
         df = pd.read_csv(input.traits)
 
         cluster_col = df['del_lineage']
-        cluster_col = ['PH'+x.split('_')[-1] if type(x) == str else float('nan') for x in cluster_col] #making list to fill out ph_lineage col, based on existing del_lineage col
-        df.rename(columns={'uk_lineage':'ph_lineage'}, inplace=True)
-        df['ph_lineage'] = cluster_col
+        cluster_col = [str(params.country_code)+x.split('_')[-1] if type(x) == str else float('nan') for x in cluster_col] #making list to fill out country lineage col, based on existing del_lineage col
+        df[str(params.country_code)+'_lineage'] = cluster_col
 
         df.to_csv(output.traits, index=False)
 
@@ -386,7 +410,7 @@ rule summarize_make_trees:
         traits = rules.output_annotations.output.traits,
         public_tree = rules.sort_collapse.output.sorted_collapsed_tree,
         grafted_tree = rules.graft.output.grafted_tree,
-        expanded_tree = rules.insert_cog_seqs.output.grafted_tree_expanded_cog,
+        expanded_tree = rules.insert_redcap_seqs.output.grafted_tree_expanded_redcap
     params:
         grapevine_webhook = config["grapevine_webhook"],
         date = config["date"]

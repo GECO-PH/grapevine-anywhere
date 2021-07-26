@@ -22,11 +22,11 @@ if not config.get("date"):
 rule all:
     input:
 #        config["output_path"] + "/logs/6_summarize_publish.log",
-        config["output_path"] + "/logs/5_summarize_define_uk_lineages_and_cut_out_trees.log",
+        config["output_path"] + "/logs/5_summarize_define_redcap_lineages_and_cut_out_trees.log",
         config["output_path"] + "/logs/4_summarize_make_trees.log",
-        config["output_path"] + "/logs/3_summarize_combine_gisaid_and_cog.log",
+        config["output_path"] + "/logs/3_summarize_combine_gisaid_and_redcap.log",
         config["output_path"] + "/logs/2_summarize_pangolin_lineage_typing.log",
-        config["output_path"] + "/logs/1_summarize_preprocess_uk.log",
+        config["output_path"] + "/logs/1_summarize_preprocess_redcap.log",
         config["output_path"] + "/logs/0_summarize_preprocess_gisaid.log",
 #        config["output_path"] + "/snakejunk/all"
 
@@ -52,10 +52,10 @@ rule all:
 
 ##### Modules #####
 include: "rules/0_preprocess_gisaid.smk"
-include: "rules/1_preprocess_uk.smk"
+include: "rules/1_preprocess_redcap.smk"
 include: "rules/2_pangolin_lineage_typing.smk"
-include: "rules/3_combine_gisaid_and_uk.smk"
+include: "rules/3_combine_gisaid_and_redcap.smk"
 include: "rules/4_make_trees.smk"
-include: "rules/5_define_uk_lineages_and_cut_out_trees.smk"
+include: "rules/5_define_redcap_lineages_and_cut_out_trees.smk"
 #include: "rules/6_treetime.smk"
 #include: "rules/7_publish.smk"

@@ -16,6 +16,9 @@ class taxon():
 
 def make_taxon_objects(traits_file):
 
+    print(">>>>>make_taxon_objects<<<<<")
+    print(country,country_code)
+
     taxon_list = []
     del_list = set()
 
@@ -25,7 +28,7 @@ def make_taxon_objects(traits_file):
         next(f)
         for l in f:
             toks = l.strip("\n").split(",")
-            if toks[1] == "Philippines": #this is in the traits.csv
+            if toks[1] == str(country).capitalize(): #this is in the traits.csv
                 count += 1
                 seq_name = toks[0]
                 intro_name = toks[2]
@@ -154,15 +157,15 @@ def deal_with_issues(del_final_name_dict, new_names, lin_del_counts, del_name_co
 
     # print(problem_lin)
 
-    for ph_lineage, list_of_tuples in problem_lin.items():
-        print(ph_lineage)
+    for country_lineage, list_of_tuples in problem_lin.items():
+        print(country_lineage)
         winner = max(list_of_tuples, key=itemgetter(1))[0]
         print(winner)
         contenders = [x[0] for x in list_of_tuples]
         for contender in contenders:
             if contender == winner:
                 continue
-            else: #to assign the other deltrans options a different ph lineage name
+            else: #to assign the other deltrans options a different lineage name
                 del_final_name_dict[contender] = []
                 # print(acc_name_counts[contender])
                 for other_option in del_name_counts[contender]:
@@ -172,8 +175,8 @@ def deal_with_issues(del_final_name_dict, new_names, lin_del_counts, del_name_co
                         # NB: if the second
                         # highest option is already designated to a deltrans lineage,
                         # there is no further test for which deltrans_lineage should be given
-                        # the ph_lineage out of the two - we assume that the deltrans lineage
-                        # that already has the ph lineage can keep it
+                        # the country lineage out of the two - we assume that the deltrans lineage
+                        # that already has the country lineage can keep it
                         new_name = other_option
                         break
                     else:
@@ -191,7 +194,7 @@ def name_new_lineages(del_final_name_dict):
     used_names = []
     for key, value in del_final_name_dict.items():
         if value[0] != "":
-             used_names.append(int(value[0].lstrip("PH")))
+             used_names.append(int(value[0].lstrip(str(country_code))))
 
     sorted_names = (sorted(used_names))
     test_counter = Counter(sorted_names)
@@ -217,7 +220,7 @@ def name_new_lineages(del_final_name_dict):
                 new_name_prep = len(full_list) + 1
                 full_list.append(new_name_prep)
 
-            new_name = "PH" + str(new_name_prep)
+            new_name = str(country_code) + str(new_name_prep)
             del_final[deltrans] = new_name
         else:
             del_final[deltrans] = lin[0]
@@ -232,13 +235,13 @@ def write_to_file(del_to_tax, del_final, outfile):
     new_tax_list = []
     for deltrans, tax_list in del_to_tax.items():
         for tax in tax_list:
-            tax.ph_lineage = del_final[deltrans]
+            tax.country_lineage = del_final[deltrans]
             new_tax_list.append(tax)
 
     for_counting_lin_size = defaultdict(list)
 
     for tax in new_tax_list:
-        for_counting_lin_size[tax.ph_lineage].append(tax)
+        for_counting_lin_size[tax.country_lineage].append(tax)
 
     lin_counts = {}
     for i,v in for_counting_lin_size.items():
@@ -253,12 +256,12 @@ def write_to_file(del_to_tax, del_final, outfile):
 
 
     fw = open(outfile, 'w')
-    fw.write("taxon,ph_lineage,deltrans,microreact_lineage\n")
+    fw.write("taxon,"+str(country_code)+"_lineage,deltrans,microreact_lineage\n")
     for tax in new_tax_list:
-        if tax.ph_lineage in top_20:
-            new_line = tax.id + "," + tax.ph_lineage + "," + tax.deltrans + "," + tax.ph_lineage + "\n"
+        if tax.country_lineage in top_20:
+            new_line = tax.id + "," + tax.country_lineage + "," + tax.deltrans + "," + tax.country_lineage + "\n"
         else:
-            new_line = tax.id + ","  + tax.ph_lineage + "," + tax.deltrans + ",other\n"
+            new_line = tax.id + ","  + tax.country_lineage + "," + tax.deltrans + ",other\n"
 
         fw.write(new_line)
 
@@ -266,6 +269,9 @@ def write_to_file(del_to_tax, del_final, outfile):
 
 
 def curate_lineages(traits_file, outfile):
+
+    print(">>>>>curate lineages<<<<<")
+    print(country, country_code)
 
     taxon_list, del_list, del_name_counts, lin_del_counts, del_to_tax = make_taxon_objects(traits_file)
 
@@ -275,9 +281,9 @@ def curate_lineages(traits_file, outfile):
 
     del_final, test_counter = name_new_lineages(del_final_name_dict)
 
-    for k,v in test_counter.items(): #Tests if a PH lineage name has been used more than once
+    for k,v in test_counter.items(): #Tests if a country lineage name has been used more than once
         assert v == 1
-    for deltrans, lin in del_final_name_dict.items(): #Tests if a PH lineage has more than one deltrans assigned to it
+    for deltrans, lin in del_final_name_dict.items(): #Tests if a country lineage has more than one deltrans assigned to it
         assert len(lin) == 1
 
     write_to_file(del_to_tax, del_final, outfile)
@@ -285,5 +291,9 @@ def curate_lineages(traits_file, outfile):
 
 if __name__ == "__main__":
     input_file = sys.argv[1]
-    output_file = sys.argv[2]
+    country = sys.argv[2]
+    country_code = sys.argv[3]
+    output_file = sys.argv[4]
+    print(">>>>>main<<<<<")
+    print(country, country_code)
     curate_lineages(input_file, output_file)

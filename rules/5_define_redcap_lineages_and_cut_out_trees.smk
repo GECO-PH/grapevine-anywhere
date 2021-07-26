@@ -7,19 +7,22 @@ for i,row in LINEAGES_df.iterrows():
     LINEAGES.append(row["lineage"])
 
 
-rule merge_and_create_new_uk_lineages:
+rule merge_and_create_new_redcap_lineages:
     input:
         rules.add_lin_to_annotations.output.traits
     params:
-        script = os.path.join(workflow.current_basedir, "../utilities/curate_lineages.py")
+        script = os.path.join(workflow.current_basedir, "../utilities/curate_lineages.py"),
+        country = config["country"],
+        country_code = config["country_code"]
     output:
         config["output_path"] + "/5/updated_traits.csv"
     log:
-        config["output_path"] + "/logs/5_merge_and_create_new_uk_lineages.log"
-    resources: mem_per_cpu=10000
+        config["output_path"] + "/logs/5_merge_and_create_new_redcap_lineages.log"
+    resources: 
+        mem_per_cpu=10000
     shell:
         """
-        python {params.script} {input} {output} &> {log}
+        python {params.script} {input} {params.country} {params.country_code} {output} &> {log}
         """
 
 #issue with r function 'normalizePath'
@@ -81,13 +84,15 @@ rule merge_and_create_new_uk_lineages:
 
 rule update_lineage_metadata:
     input:
-        metadata = config["output_path"] + "/3/cog_gisaid.lineages.expanded.csv",
+        metadata = config["output_path"] + "/3/redcap_gisaid.lineages.expanded.csv",
 #        metadata = rules.five_update_global_lineage_metadata.output.metadata,
         traits = rules.output_annotations.output.traits,
-        updated_lineages = rules.merge_and_create_new_uk_lineages.output
+        updated_lineages = rules.merge_and_create_new_redcap_lineages.output
+    params:
+        country_code = config["country_code"]
     output:
-        traits_metadata = temp(config["output_path"] + "/5/cog_gisaid.lineages.with_traits.csv"),
-        all_metadata = config["output_path"] + "/5/cog_gisaid.lineages.with_all_traits.csv"
+        traits_metadata = temp(config["output_path"] + "/5/redcap_gisaid.lineages.with_traits.csv"),
+        all_metadata = config["output_path"] + "/5/redcap_gisaid.lineages.with_all_traits.csv"
     log:
         config["output_path"] + "/logs/5_update_metadata.log"
     shell:
@@ -105,7 +110,7 @@ rule update_lineage_metadata:
           --in-data {input.updated_lineages} \
           --index-column strain \
           --join-on taxon \
-          --new-columns ph_lineage microreact_lineage \
+          --new-columns {params.country_code}_lineage microreact_lineage \
           --out-metadata {output.all_metadata} &> {log}
         """
 
@@ -141,31 +146,35 @@ rule step_5_annotate_tree:
     input:
         tree = rules.merge_sibling_del_introduction.output.tree,
         metadata = rules.update_lineage_metadata.output.all_metadata
+    params:
+        country_code = config["country_code"]
     output:
-        tree=config["output_path"] + "/5/cog_gisaid_grafted.annotated.tree"
+        tree=config["output_path"] + "/5/redcap_gisaid_grafted.annotated.tree"
     log:
         config["output_path"] + "/logs/5_annotate.log"
-    resources: mem_per_cpu=20000
+    resources: 
+        mem_per_cpu=20000
     shell:
         """
         clusterfunk annotate_tips \
           --in-metadata {input.metadata} \
-          --trait-columns ph_lineage \
+          --trait-columns {params.country_code}_lineage \
           --index-column strain \
           --input {input.tree} \
           --output {output.tree} &> {log}
         """
 
 
+#need to understand what this is doing
 #why -ge 3?
 #          I=`echo ${{LINE}} | cut -d"K" -f2`
-rule get_uk_lineage_samples:
+rule get_redcap_lineage_samples:
     input:
-        metadata = rules.merge_and_create_new_uk_lineages.output
+        metadata = rules.merge_and_create_new_redcap_lineages.output
     output:
         outdir = directory(config["output_path"] + "/5/samples/")
     log:
-        config["output_path"] + "/logs/5_get_uk_lineage_samples.log"
+        config["output_path"] + "/logs/5_get_redcap_lineage_samples.log"
     shell:
         """
         mkdir -p {output.outdir} &> {log}
@@ -182,12 +191,13 @@ rule get_uk_lineage_samples:
 
 rule dequote_tree:
     input:
-        full_newick_tree = rules.sort_collapse.output.sorted_collapsed_tree,
+        full_newick_tree = rules.sort_collapse.output.sorted_collapsed_tree
     output:
-        tree = config["output_path"] + "/5/cog_gisaid_full.tree.noquotes.newick"
+        tree = config["output_path"] + "/5/redcap_gisaid_full.tree.noquotes.newick"
     log:
         config["output_path"] + "/logs/5_dequote_tree.log"
-    resources: mem_per_cpu=10000
+    resources: 
+        mem_per_cpu=10000
     shell:
         """
         sed "s/'//g" {input.full_newick_tree} > {output.tree} 2> {log}
@@ -200,22 +210,25 @@ rule cut_out_trees:
     input:
         full_tree = rules.dequote_tree.output.tree,
         indir = config["output_path"] + "/5/samples"
+    params:
+        country_code = config["country_code"]
     output:
         outdir = directory(config["output_path"] + "/5/trees/")
     log:
         config["output_path"] + "/logs/5_cut_out_trees.log"
-    resources: mem_per_cpu=10000
+    resources: 
+        mem_per_cpu=10000
     shell:
         """
         mkdir -p {output.outdir} 2> {log}
 
-        for FILE in {input.indir}/PH*.samples.txt
+        for FILE in {input.indir}/{params.country_code}*.samples.txt
         do
-            PHLIN=`echo ${{FILE}} | rev | cut -d"/" -f1 | rev | cut -d"." -f1`
+            LIN=`echo ${{FILE}} | rev | cut -d"/" -f1 | rev | cut -d"." -f1`
             gotree prune -r \
                 -i {input.full_tree} \
                 --tipfile ${{FILE}} \
-                -o {output.outdir}/${{PHLIN}}.tree
+                -o {output.outdir}/${{LIN}}.tree
         done 2>> {log}
         """
 
@@ -231,43 +244,45 @@ rule phylotype_cut_trees:
         threshold=2E-5
     log:
         config["output_path"] + "/logs/5_phylotype_cut_trees.log"
-    resources: mem_per_cpu=20000
+    resources: 
+        mem_per_cpu=20000
     shell:
         """
         mkdir -p {output.phylotypedir} 2> {log}
 
         for FILE in {input.treedir}/*.tree
         do
-            PHLIN=`echo ${{FILE}} | rev | cut -d"/" -f1 | rev | cut -d"." -f1`
+            LIN=`echo ${{FILE}} | rev | cut -d"/" -f1 | rev | cut -d"." -f1`
             clusterfunk phylotype \
                 --threshold {params.threshold} \
-                --prefix ${{PHLIN}}_1 \
+                --prefix ${{LIN}}_1 \
                 --input ${{FILE}} \
                 --in-format newick \
-                --output {output.phylotypedir}/${{PHLIN}}.tree
+                --output {output.phylotypedir}/${{LIN}}.tree
         done 2>> {log}
         """
 
 
-rule get_uk_phylotypes_csv:
+rule get_redcap_phylotypes_csv:
     input:
         phylotypedir = config["output_path"] + "/5/phylotyped_trees/"
     output:
         csvdir = directory(config["output_path"] + "/5/phylotype_csvs/")
     log:
-        config["output_path"] + "/logs/5_get_uk_phylotypes_csv.log"
-    resources: mem_per_cpu=20000
+        config["output_path"] + "/logs/5_get_redcap_phylotypes_csv.log"
+    resources: 
+        mem_per_cpu=20000
     shell:
         """
         mkdir -p {output.csvdir} 2> {log}
 
         for FILE in {input.phylotypedir}/*.tree
         do
-            PHLIN=`echo ${{FILE}} | rev | cut -d"/" -f1 | rev | cut -d"." -f1`
+            LIN=`echo ${{FILE}} | rev | cut -d"/" -f1 | rev | cut -d"." -f1`
             clusterfunk extract_tip_annotations \
               --traits country phylotype \
               --input ${{FILE}} \
-              --output {output.csvdir}/${{PHLIN}}.csv
+              --output {output.csvdir}/${{LIN}}.csv
         done 2>> {log}
         """
 
@@ -297,10 +312,11 @@ rule combine_phylotypes_csv:
     input:
         csvdir = config["output_path"] + "/5/phylotype_csvs/"
     output:
-        phylotype_csv = config["output_path"] + "/5/UK_phylotypes.csv"
+        phylotype_csv = config["output_path"] + "/5/redcap_phylotypes.csv"
     log:
         config["output_path"] + "/logs/5_traits_combine_phylotype_csv.log"
-    resources: mem_per_cpu=20000
+    resources: 
+        mem_per_cpu=20000
     run:
         import pandas as pd
         import glob
@@ -327,7 +343,7 @@ rule merge_with_metadata:
         metadata = rules.update_lineage_metadata.output.all_metadata,
         traits = rules.combine_phylotypes_csv.output.phylotype_csv
     output:
-        metadata = config["output_path"] + "/5/cog_gisaid.lineages.with_all_traits.with_phylotype_traits.csv"
+        metadata = config["output_path"] + "/5/redcap_gisaid.lineages.with_all_traits.with_phylotype_traits.csv"
     log:
         config["output_path"] + "/logs/5_merge_with_metadata.log"
     shell:
@@ -347,10 +363,11 @@ rule annotate_phylotypes:
         tree=rules.step_5_annotate_tree.output.tree,
         metadata = rules.merge_with_metadata.output.metadata
     output:
-        annotated_tree = config["output_path"] + "/5/cog_gisaid_full.tree.nexus",
+        annotated_tree = config["output_path"] + "/5/redcap_gisaid_full.tree.nexus"
     log:
         config["output_path"] + "/logs/5_annotate_phylotypes.log"
-    resources: mem_per_cpu=20000
+    resources: 
+        mem_per_cpu=20000
     shell:
         """
         clusterfunk annotate_tips \
@@ -371,7 +388,7 @@ rule annotate_phylotypes:
 #        echo '"}}' >> {params.json_path}/5b_data.json
 #        echo "webhook {params.grapevine_webhook}"
 #        curl -X POST -H "Content-type: application/json" -d @{params.json_path}/5b_data.json {params.grapevine_webhook}
-rule summarize_define_uk_lineages_and_cut_out_trees:
+rule summarize_define_redcap_lineages_and_cut_out_trees:
     input:
         annotated_tree = rules.annotate_phylotypes.output.annotated_tree,
 #        sankey_plot = rules.step_5_generate_sankey_plot.output.plot
@@ -380,7 +397,7 @@ rule summarize_define_uk_lineages_and_cut_out_trees:
 #        json_path = config["json_path"],  
 #        date = config["date"]
     log:
-        config["output_path"] + "/logs/5_summarize_define_uk_lineages_and_cut_out_trees.log"
+        config["output_path"] + "/logs/5_summarize_define_redcap_lineages_and_cut_out_trees.log"
     shell:
         """
         echo "5_subroutine complete" &>> {log}

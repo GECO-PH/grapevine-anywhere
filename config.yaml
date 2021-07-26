@@ -1,3 +1,7 @@
+##### Country of Interest #####
+country: philippines
+country_code: ph
+
 ##### Where is the data? #####
 GISAID_background_fasta: dummy_files/gisaid_background_fasta.fasta
 GISAID_background_metadata: dummy_files/gisaid_background_metadata.txt
@@ -10,9 +14,9 @@ previous_uk_metadata: dummy_files/previous_uk_metadata.txt # NEEDED IN STEP 1
 latest_uk_fasta: dummy_files/latest_uk_fasta.fasta
 latest_uk_metadata: dummy_files/latest_uk_metadata.txt
 
-uk_omissions: dummy_files/uk_omissions.txt
+redcap_omissions: dummy_files/uk_omissions.txt
 uk_updated_dates: dummy_files/uk_updated_dates.txt
-uk_mask_file: resources/resources/mask.txt
+redcap_mask_file: resources/resources/mask.txt
 
 redcap_access: redcap_api_url_and_key.txt
 
@@ -80,7 +84,7 @@ MINK_variants: dummy_files/mink_variants.txt
 phylopipe_token: dummy_files/phylopipe_token.txt
 
 
-#### Keys added for adapting grapevine for RITM Coronavirus project ####
+#### Keys added for adapting grapevine for GECO project ####
 gisaid_fasta: data/gisaid_data/ncov_asia.fasta
 gisaid_meta: data/gisaid_data/ncov_asia.tsv
 

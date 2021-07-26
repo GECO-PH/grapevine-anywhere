@@ -248,10 +248,12 @@ rule gisaid_get_variants:
     input:
         sam = rules.gisaid_minimap2_to_reference.output.sam,
         reference = config["reference_fasta"],
-        genbank_anno = config["reference_genbank_annotation"],
+        genbank_anno = config["reference_genbank_annotation"]
+    params:
+        country = config["country"]
     output:
         variants = config["output_path"] + "/0/gisaid.variants.csv",
-        global_variants = config["output_path"] + "/0/gisaid.global.variants.csv",
+        global_variants = config["output_path"] + "/0/gisaid.global.variants.csv"
     log:
         config["output_path"] + "/logs/0_gisaid_get_variants.log"
     threads: 8
@@ -264,7 +266,7 @@ rule gisaid_get_variants:
             --outfile {output.variants} &>> {log}
 
         head -n1 {output.variants} > {output.global_variants}
-        tail -n+2 {output.variants} | grep -v -E "^Philippines" >> {output.global_variants}
+        tail -n+2 {output.variants} | grep -v -E "^{params.country}" >> {output.global_variants}
         """
 
 
@@ -277,7 +279,7 @@ rule gisaid_remove_insertions_and_pad:
         trim_start = config["trim_start"],
         trim_end = config["trim_end"],
         insertions = config["output_path"] + "/0/gisaid_insertions.txt",
-        deletions = config["output_path"] + "/0/gisaid_deletions.txt",
+        deletions = config["output_path"] + "/0/gisaid_deletions.txt"
     output:
         fasta = config["output_path"] + "/0/gisaid.RD.UH.filt1.mapped.fasta"
     threads: 8
@@ -316,7 +318,7 @@ rule gisaid_mask:
         fasta = rules.gisaid_filter_2.output.fasta,
         mask = config["gisaid_mask_file"]
     output:
-        fasta = config["output_path"] + "/0/gisaid.RD.UH.filt.mapped.filt2.masked.fasta",
+        fasta = config["output_path"] + "/0/gisaid.RD.UH.filt.mapped.filt2.masked.fasta"
     shell:
         """
         datafunk mask \
@@ -431,9 +433,9 @@ rule gisaid_add_AA_finder_result_to_metadata:
 rule gisaid_extract_lineageless:
     input:
         fasta = rules.gisaid_mask.output.fasta,
-        metadata = rules.gisaid_add_AA_finder_result_to_metadata.output.metadata,
+        metadata = rules.gisaid_add_AA_finder_result_to_metadata.output.metadata
     output:
-        fasta = config["output_path"] + "/0/gisaid.new.pangolin_lineages.fasta",
+        fasta = config["output_path"] + "/0/gisaid.new.pangolin_lineages.fasta"
     log:
         config["output_path"] + "/logs/0_extract_lineageless.log"
     resources: mem_per_cpu=20000
@@ -512,7 +514,7 @@ rule gisaid_del_finder:
         fasta = rules.gisaid_mask.output.fasta,
         dels = config["dels"]
     output:
-        metadata = config["output_path"] + "/0/gisaid.del_finder.csv",
+        metadata = config["output_path"] + "/0/gisaid.del_finder.csv"
     log:
         config["output_path"] + "/logs/0_gisaid_del_finder.log"
     shell:
@@ -524,6 +526,9 @@ rule gisaid_del_finder:
         """
 
 
+#not sure why this sed line is used
+#replaces lineage B.1.5 with B.1 in rows matching the strain name
+#is it needed?
 rule gisaid_add_del_finder_result_to_metadata:
     input:
         dels = config["dels"],
@@ -742,10 +747,10 @@ rule gisaid_output_global_matched_metadata:
 rule gisaid_get_collapsed_metadata:
     input:
         fasta = rules.gisaid_mask.output.fasta,
-        metadata = rules.gisaid_add_del_finder_result_to_metadata.output.metadata,
+        metadata = rules.gisaid_add_del_finder_result_to_metadata.output.metadata
     output:
         fasta = temp(config["output_path"] + "/0/gisaid.global.collapsed.temp.fasta"),
-        metadata = config["output_path"] + "/0/gisaid.global.collapsed.csv",
+        metadata = config["output_path"] + "/0/gisaid.global.collapsed.csv"
     log:
         config["output_path"] + "/logs/0_gisaid_get_collapsed_metadata.log"
     shell:
@@ -808,10 +813,10 @@ rule gisaid_get_collapsed_metadata:
 rule gisaid_get_collapsed_expanded_metadata:
     input:
         collapsed_fasta = rules.gisaid_mask.output,
-        metadata = rules.gisaid_add_del_finder_result_to_metadata.output.metadata,
+        metadata = rules.gisaid_add_del_finder_result_to_metadata.output.metadata
     output:
         fasta = config["output_path"] + "/0/gisaid.global.collapsed.unique_expanded.fasta",
-        metadata = config["output_path"] + "/0/gisaid.global.collapsed.unique_expanded.csv",
+        metadata = config["output_path"] + "/0/gisaid.global.collapsed.unique_expanded.csv"
     log:
         config["output_path"] + "/logs/0_gisaid_get_collapsed_expanded_metadata.log"
     shell:
@@ -872,9 +877,9 @@ rule gisaid_get_collapsed_expanded_metadata:
 rule check_root_pangolin_lineages:
     input:
         metadata = rules.gisaid_add_del_finder_result_to_metadata.output.metadata,
-        lineage_splits = config["lineage_splits"],
+        lineage_splits = config["lineage_splits"]
     output:
-        metadata = config["output_path"] + "/0/root_pangolin_lineages.txt",
+        metadata = config["output_path"] + "/0/root_pangolin_lineages.txt"
     log:
         config["output_path"] + "/0/check_root_pangolin_lineages.log"
     resources: mem_per_cpu=20000
@@ -917,7 +922,7 @@ rule summarize_preprocess_gisaid:
         collapsed_expanded_metadata = rules.gisaid_get_collapsed_expanded_metadata.output.metadata,
         #counts = rules.gisaid_counts_by_country.output.counts,
         variants = rules.gisaid_get_variants.output.variants,
-        root_lineages = rules.check_root_pangolin_lineages.output.metadata,
+        root_lineages = rules.check_root_pangolin_lineages.output.metadata
     params:
         publish_path = config["publish_path"] + "/GISAID/",
         #published_counts = config["publish_path"] + "/GISAID/gisaid_counts_by_country.csv",
@@ -925,7 +930,7 @@ rule summarize_preprocess_gisaid:
         published_all_metadata = config["publish_path"] + "/GISAID/gisaid.all.csv",
         published_variants = config["publish_path"] + "/GISAID/gisaid.all.variants",
         grapevine_webhook = config["grapevine_webhook"],
-        date = config["date"],
+        date = config["date"]
     log:
         config["output_path"] + "/logs/0_summarize_preprocess_gisaid.log"
     shell:

@@ -8,7 +8,7 @@ rule get_redcap_metadata:
     output:
         metadata = config["output_path"] + "/1/redcap_metadata.csv"
     log:
-        config["output_path"] + "/logs/1_get_redcap_metadata.log"
+        config["output_path"] + "/logs/1_redcap_get_redcap_metadata.log"
     shell:
         """
         python {params.script} {input.redcap_db} {output.metadata} &> {log}
@@ -17,9 +17,9 @@ rule get_redcap_metadata:
 rule get_redcap_fasta:
     input:
         redcap_db = config["redcap_access"],
-        metadata = rules.get_redcap_metadata.output.metadata,
+        metadata = rules.get_redcap_metadata.output.metadata
     output:
-        fasta = config["output_path"] + "/1/redcap_fasta.fasta",
+        fasta = config["output_path"] + "/1/redcap_fasta.fasta"
     run:
         import redcap
         import pandas as pd
@@ -42,13 +42,13 @@ rule get_redcap_fasta:
 
 
 #for formatting fasta record names
-rule format_RC_fasta_header:
+rule format_redcap_fasta_header:
     input:
         fasta = rules.get_redcap_fasta.output.fasta
     output:
-        fasta = config["output_path"] + "/1/RC_formatted.fasta"
+        fasta = config["output_path"] + "/1/redcap_formatted.fasta"
     log:
-        config["output_path"] + "/logs/1_uk_strip_header_digits.log"
+        config["output_path"] + "/logs/1_redcap_strip_header_digits.log"
     run:
         from Bio import SeqIO
         
@@ -65,9 +65,9 @@ rule format_RC_fasta_header:
 rule add_strain:
     input:
         metadata = rules.get_redcap_metadata.output.metadata,
-        fasta = rules.format_RC_fasta_header.output.fasta
+        fasta = rules.format_redcap_fasta_header.output.fasta
     output:
-        metadata = config["output_path"] + "/1/RC_metadata.strain.csv"
+        metadata = config["output_path"] + "/1/redcap_metadata.strain.csv"
     run:
         import pandas as pd
         from Bio import SeqIO
@@ -86,14 +86,16 @@ rule add_strain:
 
 #add sample date column based on collection date or received date
 #originally took config["latest_uk_metadata"] as input
+#there's already a function for this in datafunk/fastafunk, should probably use that
 rule add_sample_date:
     input:
-        metadata = rules.add_strain.output.metadata,
+        metadata = rules.add_strain.output.metadata
     output:
-        metadata = config["output_path"] + "/1/RC_metadata.strain.sample_date.csv",
+        metadata = config["output_path"] + "/1/redcap_metadata.strain.sample_date.csv"
     log:
-        config["output_path"] + "/logs/1_uk_add_sample_date.log"
-    resources: mem_per_cpu=20000
+        config["output_path"] + "/logs/1_redcap_add_sample_date.log"
+    resources: 
+        mem_per_cpu=20000
     run:
         import pandas as pd
 
@@ -219,13 +221,14 @@ rule add_sample_date:
 #annotate adds length, missing and gaps columns
 rule annotate_to_remove_duplicates:
     input:
-        fasta = rules.format_RC_fasta_header.output.fasta,
-        metadata = rules.add_sample_date.output.metadata,
+        fasta = rules.format_redcap_fasta_header.output.fasta,
+        metadata = rules.add_sample_date.output.metadata
     output:
-        metadata = config["output_path"] + "/1/uk_latest.add_sample_date.add_sequence_name.accessions.annotated.csv"
+        metadata = config["output_path"] + "/1/redcap_latest.add_sample_date.add_sequence_name.accessions.annotated.csv"
     log:
-        config["output_path"] + "/logs/1_uk_annotate_to_remove_duplicates.log"
-    resources: mem_per_cpu=20000
+        config["output_path"] + "/logs/1_redcap_annotate_to_remove_duplicates.log"
+    resources: 
+        mem_per_cpu=20000
     shell:
         """
         fastafunk annotate \
@@ -238,12 +241,13 @@ rule annotate_to_remove_duplicates:
           # --add-cov-id \
 
 
+#need to make sure method of calculating coverage is okay
 rule add_coverage_column:
     input:
-        fasta = rules.format_RC_fasta_header.output.fasta,
+        fasta = rules.format_redcap_fasta_header.output.fasta,
         metadata = rules.annotate_to_remove_duplicates.output.metadata
     output:
-        metadata = config["output_path"] + "/1/uk_latest.add_sample_date.add_sequence_name.accessions.annotated.covg.csv"
+        metadata = config["output_path"] + "/1/redcap_latest.add_sample_date.add_sequence_name.accessions.annotated.covg.csv"
     run:
         import pandas as pd
         from Bio import SeqIO
@@ -317,10 +321,11 @@ rule add_epi_week:
     input:
         metadata = rules.add_coverage_column.output.metadata
     output:
-        metadata = config["output_path"] + "/1/uk_latest.add_header.annotated.deduplicated_cov_id.sample_date.updated_sample_date.epi_week.csv"
+        metadata = config["output_path"] + "/1/redcap_latest.add_header.annotated.deduplicated_cov_id.sample_date.updated_sample_date.epi_week.csv"
     log:
-        config["output_path"] + "/logs/1_uk_add_epi_week.log"
-    resources: mem_per_cpu=20000
+        config["output_path"] + "/logs/1_redcap_add_epi_week.log"
+    resources: 
+        mem_per_cpu=20000
     shell:
         """
         datafunk add_epi_week \
@@ -461,7 +466,7 @@ rule add_epi_week:
 #current length threshold: 29000
 rule redcap_filter_by_length:
     input:
-        fasta = rules.format_RC_fasta_header.output.fasta
+        fasta = rules.format_redcap_fasta_header.output.fasta
     params:
         min_length = config["min_length"]
     output:
@@ -478,31 +483,32 @@ rule redcap_filter_by_length:
 
 
 #originally took rules.uk_unify_headers.output.fasta as input
-rule uk_minimap2_to_reference:
+rule redcap_minimap2_to_reference:
     input:
         fasta = rules.redcap_filter_by_length.output.fasta,
         reference = config["reference_fasta"]
     output:
-        sam = config["output_path"] + "/1/uk_latest.unify_headers.epi_week.deduplicated.mapped.sam"
+        sam = config["output_path"] + "/1/redcap_latest.unify_headers.epi_week.deduplicated.mapped.sam"
     log:
-        config["output_path"] + "/logs/1_uk_minimap2_to_reference.log"
+        config["output_path"] + "/logs/1_redcap_minimap2_to_reference.log"
     threads: 16
-    resources: mem_per_cpu=2000
+    resources: 
+        mem_per_cpu=2000
     shell:
         """
         minimap2 -t {threads} -a -x asm5 {input.reference} {input.fasta} > {output.sam} 2> {log}
         """
 
 
-rule uk_get_variants:
+rule redcap_get_variants:
     input:
-        sam = rules.uk_minimap2_to_reference.output.sam,
+        sam = rules.redcap_minimap2_to_reference.output.sam,
         reference = config["reference_fasta"],
-        genbank_anno = config["reference_genbank_annotation"],
+        genbank_anno = config["reference_genbank_annotation"]
     output:
-        variants = config["output_path"] + "/1/uk.variants.csv",
+        variants = config["output_path"] + "/1/redcap.variants.csv"
     log:
-        config["output_path"] + "/logs/1_uk_get_variants.log"
+        config["output_path"] + "/logs/1_redcap_get_variants.log"
     threads: 12
     shell:
         """
@@ -527,9 +533,9 @@ rule uk_get_variants:
 #        mv deletions.txt {params.deletions}
 #        cp {params.insertions} {output.insertions}
 #        cp {params.deletions} {output.deletions}
-rule uk_remove_insertions_and_trim_and_pad:
+rule redcap_remove_insertions_and_trim_and_pad:
     input:
-        sam = rules.uk_minimap2_to_reference.output.sam,
+        sam = rules.redcap_minimap2_to_reference.output.sam,
         reference = config["reference_fasta"]
     params:
         trim_start = config["trim_start"],
@@ -537,11 +543,11 @@ rule uk_remove_insertions_and_trim_and_pad:
 #        insertions = config["output_path"] + "/1/uk_insertions.txt",
 #        deletions = config["output_path"] + "/1/uk_deletions.txt"
     output:
-        fasta = config["output_path"] + "/1/uk_latest.unify_headers.epi_week.deduplicated.alignment.trimmed.fasta",
+        fasta = config["output_path"] + "/1/redcap_latest.unify_headers.epi_week.deduplicated.alignment.trimmed.fasta",
 #        insertions = config["export_path"] + "/metadata/uk_insertions.txt",
-#        deletions = config["export_path"] + "/metadata/uk_deletions.txt",
+#        deletions = config["export_path"] + "/metadata/uk_deletions.txt"
     log:
-        config["output_path"] + "/logs/1_uk_remove_insertions_and_trim_and_pad.log"
+        config["output_path"] + "/logs/1_redcap_remove_insertions_and_trim_and_pad.log"
     shell:
         """
         datafunk sam_2_fasta \
@@ -554,15 +560,16 @@ rule uk_remove_insertions_and_trim_and_pad:
           --log-deletions &> {log}
         """
 
+
 #mask file is currently same one used in gisaid preprocessing step
-rule uk_mask_1:
+rule redcap_mask_1:
     input:
-        fasta = rules.uk_remove_insertions_and_trim_and_pad.output.fasta,
-        mask = config["uk_mask_file"]
+        fasta = rules.redcap_remove_insertions_and_trim_and_pad.output.fasta,
+        mask = config["redcap_mask_file"]
     output:
-        fasta = config["output_path"] + "/1/uk_latest.unify_headers.epi_week.deduplicated.alignment.trimmed.masked.fasta",
+        fasta = config["output_path"] + "/1/redcap_latest.unify_headers.epi_week.deduplicated.alignment.trimmed.masked.fasta",
     log:
-        config["output_path"] + "/logs/1_uk_mask_1.log"
+        config["output_path"] + "/logs/1_redcap_mask_1.log"
     shell:
         """
         datafunk mask \
@@ -572,16 +579,17 @@ rule uk_mask_1:
         """
 
 
-rule uk_filter_low_coverage_sequences:
+rule redcap_filter_low_coverage_sequences:
     input:
-        fasta = rules.uk_mask_1.output.fasta
+        fasta = rules.redcap_mask_1.output.fasta
     params:
         min_covg = config["min_covg"]
     output:
-        fasta = config["output_path"] + "/1/uk_latest.unify_headers.epi_week.deduplicated.trimmed.low_covg_filtered.fasta"
+        fasta = config["output_path"] + "/1/redcap_latest.unify_headers.epi_week.deduplicated.trimmed.low_covg_filtered.fasta"
     log:
-        config["output_path"] + "/logs/1_uk_filter_low_coverage_sequences.log"
-    resources: mem_per_cpu=20000
+        config["output_path"] + "/logs/1_redcap_filter_low_coverage_sequences.log"
+    resources: 
+        mem_per_cpu=20000
     shell:
         """
         datafunk filter_fasta_by_covg_and_length \
@@ -593,15 +601,16 @@ rule uk_filter_low_coverage_sequences:
 
 #will need to get omissions list
 #do we have or need one?
-rule uk_filter_omitted_sequences:
+rule redcap_filter_omitted_sequences:
     input:
-        fasta = rules.uk_filter_low_coverage_sequences.output.fasta,
-        omissions = config["uk_omissions"]
+        fasta = rules.redcap_filter_low_coverage_sequences.output.fasta,
+        omissions = config["redcap_omissions"]
     output:
-        fasta = config["output_path"] + "/1/uk_latest.unify_headers.epi_week.deduplicated.trimmed.low_covg_filtered.omissions_filtered.fasta"
+        fasta = config["output_path"] + "/1/redcap_latest.unify_headers.epi_week.deduplicated.trimmed.low_covg_filtered.omissions_filtered.fasta"
     log:
-        config["output_path"] + "/logs/1_uk_filter_omitted_sequences.log"
-    resources: mem_per_cpu=20000
+        config["output_path"] + "/logs/1_redcap_filter_omitted_sequences.log"
+    resources: 
+        mem_per_cpu=20000
     shell:
         """
         datafunk remove_fasta \
@@ -611,14 +620,14 @@ rule uk_filter_omitted_sequences:
         """
 
 
-rule uk_full_untrimmed_alignment:
+rule redcap_full_untrimmed_alignment:
     input:
-        sam = rules.uk_minimap2_to_reference.output.sam,
+        sam = rules.redcap_minimap2_to_reference.output.sam,
         reference = config["reference_fasta"],
     output:
-        fasta = config["output_path"] + "/1/uk_latest.unify_headers.epi_week.deduplicated.alignment.full.fasta"
+        fasta = config["output_path"] + "/1/redcap_latest.unify_headers.epi_week.deduplicated.alignment.full.fasta"
     log:
-        config["output_path"] + "/logs/1_uk_full_untrimmed_alignment.log"
+        config["output_path"] + "/logs/1_redcap_full_untrimmed_alignment.log"
     shell:
         """
         datafunk sam_2_fasta \
@@ -630,14 +639,14 @@ rule uk_full_untrimmed_alignment:
 
 
 #using the same mask file
-rule uk_mask_2:
+rule redcap_mask_2:
     input:
-        fasta = rules.uk_full_untrimmed_alignment.output.fasta,
-        mask = config["uk_mask_file"]
+        fasta = rules.redcap_full_untrimmed_alignment.output.fasta,
+        mask = config["redcap_mask_file"]
     output:
-        fasta = config["output_path"] + "/1/uk_latest.unify_headers.epi_week.deduplicated.alignment.full.masked.fasta"
+        fasta = config["output_path"] + "/1/redcap_latest.unify_headers.epi_week.deduplicated.alignment.full.masked.fasta"
     log:
-        config["output_path"] + "/logs/1_uk_mask_2.log"
+        config["output_path"] + "/logs/1_redcap_mask_2.log"
     shell:
         """
         datafunk mask \
@@ -648,14 +657,14 @@ rule uk_mask_2:
 
 
 # get the same alignment as we use for tree building but with no mask
-rule uk_get_unmasked_alignment:
+rule redcap_get_unmasked_alignment:
     input:
-        fasta_template = rules.uk_filter_omitted_sequences.output.fasta,
-        fasta = rules.uk_full_untrimmed_alignment.output.fasta,
+        fasta_template = rules.redcap_filter_omitted_sequences.output.fasta,
+        fasta = rules.redcap_full_untrimmed_alignment.output.fasta
     output:
-        fasta = config["output_path"] + "/1/uk_latest.unify_headers.epi_week.deduplicated.alignment.full.unmasked.fasta",
+        fasta = config["output_path"] + "/1/redcap_latest.unify_headers.epi_week.deduplicated.alignment.full.unmasked.fasta"
     log:
-        config["output_path"] + "/logs/1_uk_get_unmasked_alignment.log"
+        config["output_path"] + "/logs/1_redcap_get_unmasked_alignment.log"
     run:
         from Bio import SeqIO
 
@@ -669,14 +678,14 @@ rule uk_get_unmasked_alignment:
                     fasta_out.write(str(fasta_in[record].seq) + '\n')
 
 
-rule UK_AA_finder:
+rule redcap_AA_finder:
     input:
-        fasta = rules.uk_full_untrimmed_alignment.output.fasta,
+        fasta = rules.redcap_full_untrimmed_alignment.output.fasta,
         AAs = config["AAs"]
     output:
-        found = config["output_path"] + "/1/cog.AA_finder.csv",
+        found = config["output_path"] + "/1/redcap.AA_finder.csv"
     log:
-        config["output_path"] + "/logs/1_UK_AA_finder.log"
+        config["output_path"] + "/logs/1_redcap_AA_finder.log"
     shell:
         """
         datafunk AA_finder -i {input.fasta} --codons-file {input.AAs} --genotypes-table {output.found} &> {log}
@@ -687,9 +696,9 @@ rule add_AA_finder_result_to_metadata:
     input:
         AAs = config["AAs"],
         metadata = rules.add_epi_week.output.metadata,
-        new_data = rules.UK_AA_finder.output.found
+        new_data = rules.redcap_AA_finder.output.found
     output:
-        metadata = config["output_path"] + "/1/uk_latest.unify_headers.epi_week.deduplicated.with_AA_finder.csv"
+        metadata = config["output_path"] + "/1/redcap_latest.unify_headers.epi_week.deduplicated.with_AA_finder.csv"
     log:
         config["output_path"] + "/logs/1_add_AA_finder_result_to_metadata.log"
     shell:
@@ -705,14 +714,14 @@ rule add_AA_finder_result_to_metadata:
         """
 
 
-rule uk_del_finder:
+rule redcap_del_finder:
     input:
-        fasta = rules.uk_full_untrimmed_alignment.output.fasta,
+        fasta = rules.redcap_full_untrimmed_alignment.output.fasta,
         dels = config["dels"]
     output:
-        metadata = config["output_path"] + "/1/cog.del_finder.csv",
+        metadata = config["output_path"] + "/1/redcap.del_finder.csv"
     log:
-        config["output_path"] + "/logs/1_uk_del_finder.log"
+        config["output_path"] + "/logs/1_redcap_del_finder.log"
     shell:
         """
         datafunk del_finder \
@@ -723,13 +732,13 @@ rule uk_del_finder:
 
 
 #dels defined but not used?
-rule uk_add_del_finder_result_to_metadata:
+rule redcap_add_del_finder_result_to_metadata:
     input:
         dels = config["dels"],
         metadata = rules.add_AA_finder_result_to_metadata.output.metadata,
-        new_data = rules.uk_del_finder.output.metadata
+        new_data = rules.redcap_del_finder.output.metadata
     output:
-        metadata = config["output_path"] + "/1/uk_latest.unify_headers.epi_week.deduplicated.with_AA_finder.with_del_finder.csv"
+        metadata = config["output_path"] + "/1/redcap_latest.unify_headers.epi_week.deduplicated.with_AA_finder.with_del_finder.csv"
     log:
         config["output_path"] + "/logs/1_add_del_finder_result_to_metadata.log"
     shell:
@@ -784,15 +793,16 @@ lineage designation in the metadata file.
 
 
 #previously took rules.uk_add_previous_lineages_to_metadata.output.metadata as input
-rule uk_extract_lineageless:
+rule redcap_extract_lineageless:
     input:
-        fasta = rules.uk_filter_omitted_sequences.output,
-        metadata = rules.uk_add_del_finder_result_to_metadata.output.metadata,
+        fasta = rules.redcap_filter_omitted_sequences.output,
+        metadata = rules.redcap_add_del_finder_result_to_metadata.output.metadata
     output:
-        fasta = config["output_path"] + "/1/uk.new.pangolin_lineages.fasta",
+        fasta = config["output_path"] + "/1/redcap.new.pangolin_lineages.fasta"
     log:
         config["output_path"] + "/logs/1_extract_lineageless.log"
-    resources: mem_per_cpu=20000
+    resources: 
+        mem_per_cpu=20000
     run:
         from Bio import SeqIO
         import pandas as pd
@@ -816,19 +826,20 @@ rule uk_extract_lineageless:
 
 #dup logs commented out for now
 #previously took rules.uk_add_previous_lineages_to_metadata.output.metadata as input
-rule uk_add_dups_to_lineageless:
+rule redcap_add_dups_to_lineageless:
     input:
-        master_fasta = rules.uk_filter_omitted_sequences.output.fasta,
-        lineageless_fasta = rules.uk_extract_lineageless.output.fasta,
-        metadata = rules.uk_add_del_finder_result_to_metadata.output.metadata,
+        master_fasta = rules.redcap_filter_omitted_sequences.output.fasta,
+        lineageless_fasta = rules.redcap_extract_lineageless.output.fasta,
+        metadata = rules.redcap_add_del_finder_result_to_metadata.output.metadata,
         # dup_cogid_log = rules.uk_remove_duplicates_COGID_by_gaps.log,
         # dup_biosample_log = rules.uk_remove_duplicates_biosamplesourceid_by_date.log,
-        # dup_rootbio_log = rules.uk_remove_duplicates_root_biosample_by_gaps.log,
+        # dup_rootbio_log = rules.uk_remove_duplicates_root_biosample_by_gaps.log
     output:
-        fasta = config["output_path"] + "/1/uk.new.dedupes.pangolin_lineages.fasta",
+        fasta = config["output_path"] + "/1/redcap.new.dedupes.pangolin_lineages.fasta"
     log:
-        config["output_path"] + "/logs/1_uk_add_dups_to_lineageless.log"
-    resources: mem_per_cpu=20000
+        config["output_path"] + "/logs/1_redcap_add_dups_to_lineageless.log"
+    resources: 
+        mem_per_cpu=20000
     run:
         from Bio import SeqIO
         import pandas as pd
@@ -896,24 +907,24 @@ rule uk_add_dups_to_lineageless:
 #        curl -X POST -H "Content-type: application/json" -d @{params.json_path}/1_data.json {params.grapevine_webhook}
 rule summarize_preprocess_uk:
     input:
-        raw_fasta = rules.format_RC_fasta_header.output.fasta,
+        raw_fasta = rules.format_redcap_fasta_header.output.fasta,
         #deduplicated_fasta_by_covid = rules.uk_remove_duplicates_COGID_by_gaps.output.fasta,
         #deduplicated_fasta_by_biosampleid = rules.uk_remove_duplicates_biosamplesourceid_by_date.output.fasta,
         #deduplicated_fasta_by_rootbiosample = rules.uk_remove_duplicates_root_biosample_by_gaps.output.fasta,
         #unify_headers_fasta = rules.uk_unify_headers.output.fasta,
-        removed_low_covg_fasta = rules.uk_filter_low_coverage_sequences.output.fasta,
-        removed_omitted_fasta = rules.uk_filter_omitted_sequences.output.fasta,
-        full_unmasked_alignment = rules.uk_full_untrimmed_alignment.output.fasta,
-        full_metadata = rules.uk_add_del_finder_result_to_metadata.output.metadata,
+        removed_low_covg_fasta = rules.redcap_filter_low_coverage_sequences.output.fasta,
+        removed_omitted_fasta = rules.redcap_filter_omitted_sequences.output.fasta,
+        full_unmasked_alignment = rules.redcap_full_untrimmed_alignment.output.fasta,
+        full_metadata = rules.redcap_add_del_finder_result_to_metadata.output.metadata,
         #full_metadata = rules.uk_add_previous_lineages_to_metadata.output.metadata,
         #pangolin_fasta = rules.uk_add_dups_to_lineageless.output.fasta,
-        variants = rules.uk_get_variants.output.variants,
+        variants = rules.redcap_get_variants.output.variants,
     params:
         #grapevine_webhook = config["grapevine_webhook"],
         #json_path = config["json_path"],
         date=config["date"]
     log:
-        config["output_path"] + "/logs/1_summarize_preprocess_uk.log"
+        config["output_path"] + "/logs/1_summarize_preprocess_redcap.log"
     shell:
         """
         echo "> Number of sequences in raw UK fasta: $(cat {input.raw_fasta} | grep ">" | wc -l)\\n" &> {log}

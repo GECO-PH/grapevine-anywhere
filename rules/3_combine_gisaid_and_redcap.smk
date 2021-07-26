@@ -8,16 +8,16 @@
 #might set to arbitrarily large number since we have a relatively low number of sequences
 rule filter_by_date:
     input:
-        fasta = rules.uk_output_lineage_table.output.fasta,
-        metadata = rules.uk_output_lineage_table.output.metadata,
-        lineage_splits = config["lineage_splits"],
+        fasta = rules.redcap_output_lineage_table.output.fasta,
+        metadata = rules.redcap_output_lineage_table.output.metadata,
+        lineage_splits = config["lineage_splits"]
     params:
         date = config["date"],
-        time_window = config["time_window"],
+        time_window = config["time_window"]
     output:
-        fasta = config["output_path"] + "/3/uk.filter_by_date.fasta",
+        fasta = config["output_path"] + "/3/redcap.filter_by_date.fasta"
     log:
-        config["output_path"] + "/logs/3_filter_by_date.log",
+        config["output_path"] + "/logs/3_filter_by_date.log"
     run:
         import datetime
         from Bio import SeqIO
@@ -72,16 +72,17 @@ rule filter_by_date:
 #hashmap would contain names of fastas for identical sequences
 #the sequence name kept appears arbitrary
 #outgroup fastas are retained
-rule cog_hash_seqs:
+rule redcap_hash_seqs:
     input:
         fasta = rules.filter_by_date.output.fasta,
         lineage_splits = config["lineage_splits"]
     output:
-        fasta = config["output_path"] + "/3/uk.hashed.fasta",
-        metadata = config["output_path"] + "/3/uk.hashmap.csv",
+        fasta = config["output_path"] + "/3/redcap.hashed.fasta",
+        metadata = config["output_path"] + "/3/redcap.hashmap.csv",
     log:
-        config["output_path"] + "/logs/3_cog_hash_seqs.log",
-    resources: mem_per_cpu=8000
+        config["output_path"] + "/logs/3_redcap_hash_seqs.log",
+    resources: 
+        mem_per_cpu=8000
     run:
         from Bio import SeqIO
 
@@ -142,15 +143,17 @@ rule cog_hash_seqs:
 
 
 #where-column to match with gisaid metadata
-rule uk_output_hashed_lineage_table:
+rule redcap_output_hashed_lineage_table:
     input:
-        fasta = rules.cog_hash_seqs.output.fasta,
-        metadata = rules.uk_output_lineage_table.output.metadata
+        fasta = rules.redcap_hash_seqs.output.fasta,
+        metadata = rules.redcap_output_lineage_table.output.metadata
+    params:
+        country_code = config["country_code"]
     output:
-        fasta = temp(config["output_path"] + "/3/uk.hashed.temp.fasta"),
-        metadata = config["output_path"] + "/3/uk.hashed.lineages.csv"
+        fasta = temp(config["output_path"] + "/3/redcap.hashed.temp.fasta"),
+        metadata = config["output_path"] + "/3/redcap.hashed.lineages.csv"
     log:
-        config["output_path"] + "/logs/3_uk_output_hashed_lineage_table.log"
+        config["output_path"] + "/logs/3_redcap_output_hashed_lineage_table.log"
     shell:
           """
           fastafunk fetch \
@@ -159,7 +162,7 @@ rule uk_output_hashed_lineage_table:
           --index-column strain \
           --filter-column strain country adm1 adm2 \
                           sample_date epi_week \
-                          lineage uk_lineage \
+                          lineage {params.country_code}_lineage \
           --out-fasta {output.fasta} \
           --out-metadata {output.metadata} \
           --log-file {log} \
@@ -176,10 +179,12 @@ rule uk_output_hashed_lineage_table:
 rule gisaid_output_lineage_table:
     input:
         fasta = rules.gisaid_output_all_matched_metadata.output.fasta,
-        metadata = rules.gisaid_output_all_matched_metadata.output.metadata,
+        metadata = rules.gisaid_output_all_matched_metadata.output.metadata
+    params:
+        country_code = config["country_code"]
     output:
         fasta = config["output_path"] + "/3/gisaid.matched.fasta",
-        metadata = config["output_path"] + "/3/gisaid.matched.lineages.csv",
+        metadata = config["output_path"] + "/3/gisaid.matched.lineages.csv"
     log:
         config["output_path"] + "/logs/3_gisaid_output_lineage_table.log"
     shell:
@@ -190,7 +195,7 @@ rule gisaid_output_lineage_table:
           --index-column strain \
           --filter-column strain country adm1 adm2 \
                           sample_date epi_week \
-                          lineage uk_lineage \
+                          lineage {params.country_code}_lineage \
           --where-column adm1=division adm2=location sample_date=date \
           --out-fasta {output.fasta} \
           --out-metadata {output.metadata} \
@@ -203,23 +208,23 @@ rule gisaid_output_lineage_table:
 #previous stage define but not used
 #uses hashed fastas
 #passed to split_by_lineages
-rule combine_gisaid_and_cog:
+rule combine_gisaid_and_redcap:
     input:
         previous_stage = config["output_path"] + "/logs/2_summarize_pangolin_lineage_typing.log",
         gisaid_fasta = rules.gisaid_output_lineage_table.output.fasta,
         gisaid_metadata = rules.gisaid_output_lineage_table.output.metadata,
-        uk_fasta = rules.cog_hash_seqs.output.fasta,
-        uk_metadata = rules.uk_output_hashed_lineage_table.output.metadata
+        redcap_fasta = rules.redcap_hash_seqs.output.fasta,
+        redcap_metadata = rules.redcap_output_hashed_lineage_table.output.metadata
     output:
-        fasta = config["output_path"] + "/3/cog_gisaid.fasta",
-        metadata = config["output_path"] + "/3/cog_gisaid.lineages.csv"
+        fasta = config["output_path"] + "/3/redcap_gisaid.fasta",
+        metadata = config["output_path"] + "/3/redcap_gisaid.lineages.csv"
     log:
-        config["output_path"] + "/logs/3_combine_gisaid_and_cog.log"
+        config["output_path"] + "/logs/3_combine_gisaid_and_redcap.log"
     shell:
         """
         fastafunk merge \
-          --in-fasta {input.gisaid_fasta} {input.uk_fasta} \
-          --in-metadata {input.gisaid_metadata} {input.uk_metadata} \
+          --in-fasta {input.gisaid_fasta} {input.redcap_fasta} \
+          --in-metadata {input.gisaid_metadata} {input.redcap_metadata} \
           --out-fasta {output.fasta} \
           --out-metadata {output.metadata} \
           --index-column strain \
@@ -230,23 +235,23 @@ rule combine_gisaid_and_cog:
 
 #previous stage define but not used
 #uses unhashed fastas
-rule combine_gisaid_and_cog_expanded:
+rule combine_gisaid_and_redcap_expanded:
     input:
         previous_stage = config["output_path"] + "/logs/2_summarize_pangolin_lineage_typing.log",
         gisaid_fasta = rules.gisaid_output_lineage_table.output.fasta,
         gisaid_metadata = rules.gisaid_output_lineage_table.output.metadata,
-        uk_fasta = rules.uk_output_lineage_table.output.fasta,
-        uk_metadata = rules.uk_output_hashed_lineage_table.output.metadata
+        redcap_fasta = rules.redcap_output_lineage_table.output.fasta,
+        redcap_metadata = rules.redcap_output_hashed_lineage_table.output.metadata
     output:
-        fasta = config["output_path"] + "/3/cog_gisaid.expanded.fasta",
-        metadata = config["output_path"] + "/3/cog_gisaid.lineages.expanded.csv"
+        fasta = config["output_path"] + "/3/redcap_gisaid.expanded.fasta",
+        metadata = config["output_path"] + "/3/redcap_gisaid.lineages.expanded.csv"
     log:
-        config["output_path"] + "/logs/3_combine_gisaid_and_cog.log"
+        config["output_path"] + "/logs/3_combine_gisaid_and_redcap_expanded.log"
     shell:
         """
         fastafunk merge \
-          --in-fasta {input.gisaid_fasta} {input.uk_fasta} \
-          --in-metadata {input.gisaid_metadata} {input.uk_metadata} \
+          --in-fasta {input.gisaid_fasta} {input.redcap_fasta} \
+          --in-metadata {input.gisaid_metadata} {input.redcap_metadata} \
           --out-fasta {output.fasta} \
           --out-metadata {output.metadata} \
           --index-column strain \
@@ -263,23 +268,23 @@ rule combine_gisaid_and_cog_expanded:
 #        echo "webhook {params.grapevine_webhook}"
 #        curl -X POST -H "Content-type: application/json" -d @{params.json_path}/3_data.json {params.grapevine_webhook}
 #as they weren't necessary
-rule summarize_combine_gisaid_and_cog:
+rule summarize_combine_gisaid_and_redcap:
     input:
-        cog_hashed_fasta = rules.cog_hash_seqs.output.fasta,
-        fasta = rules.combine_gisaid_and_cog.output.fasta,
-        metadata = rules.combine_gisaid_and_cog.output.metadata,
-        full_fasta = rules.combine_gisaid_and_cog_expanded.output.fasta,
-        full_metadata = rules.combine_gisaid_and_cog_expanded.output.metadata,
+        redcap_hashed_fasta = rules.redcap_hash_seqs.output.fasta,
+        fasta = rules.combine_gisaid_and_redcap.output.fasta,
+        metadata = rules.combine_gisaid_and_redcap.output.metadata,
+        full_fasta = rules.combine_gisaid_and_redcap_expanded.output.fasta,
+        full_metadata = rules.combine_gisaid_and_redcap_expanded.output.metadata
     params:
         grapevine_webhook = config["grapevine_webhook"],
         json_path = config["json_path"],
         date = config["date"]
     log:
-        config["output_path"] + "/logs/3_summarize_combine_gisaid_and_cog.log"
+        config["output_path"] + "/logs/3_summarize_combine_gisaid_and_redcap.log"
     shell:
         """
-        echo "> Number of sequences in total COG and GISAID matched files for later steps: $(cat {input.full_fasta} | grep ">" | wc -l)\\n" &>> {log}
-        echo "> Number of sequences in reduced COG fasta: $(cat {input.cog_hashed_fasta} | grep ">" | wc -l)\\n" &>> {log}
-        echo "> Number of sequences in collapsed COG and GISAID matched files for tree building: $(cat {input.fasta} | grep ">" | wc -l)\\n" &>> {log}
+        echo "> Number of sequences in total REDCap and GISAID matched files for later steps: $(cat {input.full_fasta} | grep ">" | wc -l)\\n" &>> {log}
+        echo "> Number of sequences in reduced REDCap fasta: $(cat {input.redcap_hashed_fasta} | grep ">" | wc -l)\\n" &>> {log}
+        echo "> Number of sequences in collapsed REDCap and GISAID matched files for tree building: $(cat {input.fasta} | grep ">" | wc -l)\\n" &>> {log}
         echo "> \\n" &>> {log}
         """
