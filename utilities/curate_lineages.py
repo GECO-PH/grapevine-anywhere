@@ -16,9 +16,6 @@ class taxon():
 
 def make_taxon_objects(traits_file):
 
-    print(">>>>>make_taxon_objects<<<<<")
-    print(country,country_code)
-
     taxon_list = []
     del_list = set()
 
@@ -270,9 +267,6 @@ def write_to_file(del_to_tax, del_final, outfile):
 
 def curate_lineages(traits_file, outfile):
 
-    print(">>>>>curate lineages<<<<<")
-    print(country, country_code)
-
     taxon_list, del_list, del_name_counts, lin_del_counts, del_to_tax = make_taxon_objects(traits_file)
 
     del_final_name_dict, new_names = rename_lineages(del_name_counts, lin_del_counts)
@@ -294,6 +288,4 @@ if __name__ == "__main__":
     country = sys.argv[2]
     country_code = sys.argv[3]
     output_file = sys.argv[4]
-    print(">>>>>main<<<<<")
-    print(country, country_code)
     curate_lineages(input_file, output_file)

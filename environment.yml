@@ -48,5 +48,3 @@ dependencies:
     - joypy>=0.2.2
     - pytools>=2020.1
     #- dendropy=>4.5.2 dendropy causes a pip subprocess error
-#    - git+https://github.com/cov-lineages/lineages.git@2020-05-19-2 not sure this is needed
-
