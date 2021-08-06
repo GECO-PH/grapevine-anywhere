@@ -1,27 +1,40 @@
-name: adapting_grapevine
+name: test_grapevine_anywhere
 channels:
   - bioconda
   - conda-forge
   - defaults
   - cov-ert
 dependencies:
-  - biopython>=1.74
-  - coreutils>=8.25
+  - biopython==1.74
+  - coreutils==8.25
   - iqtree>=1.6
   - mafft
-  - minimap2>=2.17
-  - pip>=19.3.1
+  - minimap2==2.17
+  - pip==19.3.1
   - python>=3.7.4
-  - snakemake-minimal>=5.13
+  - snakemake-minimal==5.13
   - gofasta
-  - usher>=0.3.2
-  - pandoc>=1.19.2.1
+  - pandoc==1.19.2.1
   - fasttree
   - gotree
   - nextflow
-  - r-base>=3.5.1
   - r-networkd3
   - jclusterfunk
+  - matplotlib>=3.2.1
+  - numpy>=1.18.1
+  - pweave==0.30.3
+  - scipy==1.4.1
+  - tabulate==0.8.7
+  - pandas==1.0.1
+  - requests==2.20.0
+  - epiweeks>=2.1.1
+  - geopandas==0.7.0
+  - descartes==1.1.0
+  - joypy>=0.2.2
+  - pytools>=2020.1
+  - dendropy>=4.5.2
+  - r-base>=3.5.1
+  - usher==0.3.2
   - pip:
     - git+https://github.com/COG-UK/phylo-reports.git
     - git+https://github.com/cov-lineages/pangolin.git
@@ -33,18 +46,5 @@ dependencies:
     - git+https://github.com/cov-ert/fastafunk.git
     - git+https://github.com/cov-ert/clusterfunk.git
     - git+https://github.com/neherlab/treetime
-    - matplotlib>=3.2.1
-    - numpy>=1.18.1
-    - pweave>=0.30.3
-    - scipy>=1.4.1
-    - tabulate>=0.8.7
-    - pandas>=1.0.1
-    - requests>=2.20.0
-    - epiweeks>=2.1.1
     - argparse>=1.4.0
-    - geopandas>=0.7.0
-    - shapely>=1.7.0
-    - descartes>=1.1.0
-    - joypy>=0.2.2
-    - pytools>=2020.1
-    - dendropy>=4.5.2
+    - shapely==1.7.0
