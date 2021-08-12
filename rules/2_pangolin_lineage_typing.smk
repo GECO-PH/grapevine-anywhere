@@ -90,11 +90,13 @@ rule import_analysis_instrument_to_redcap:
         f.close()
 
         proj = redcap.Project(url, key)
-
         df = pd.read_csv(input.metadata)
         df.insert(1, 'redcap_repeat_instrument', 'Analysis')
         df.loc[:,'redcap_repeat_instrument'] = df.loc[:,'redcap_repeat_instrument'].str.casefold()
         df.loc[:,'analysis_complete'] = df.loc[:,'analysis_complete'].map(dict(Complete=1, Incomplete=0))
+
+        #convert missing column to percentage
+        df.loc[:,'missing'] = df.loc[:,'missing'].apply(lambda x:round(x*100,2))
 
         proj.import_records(df)
         df.to_csv(output.metadata, index=False)
