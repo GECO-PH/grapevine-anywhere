@@ -23,13 +23,36 @@ rule redcap_normal_pangolin:
         """
 
 
+rule redcap_filter_unassignable_lineage:
+    input:
+        lineages = rules.redcap_normal_pangolin.output.lineages
+    output:
+        lineages = config["output_path"] + "/2/normal_pangolin/lineage_report_filtered.csv"
+    log:
+        config["output_path"] + "/logs/2_redcap_filter_unassignable_lineage.log"
+    run:
+        import pandas as pd
+
+        df = pd.read_csv(input.lineages)
+
+        df_filtered = df.loc[df['lineage'].notnull()]
+        df_unassigned = df.loc[df['lineage'].isnull()]
+
+        df_filtered.to_csv(output.lineages, index=False)
+
+        with open(str(log), "w") as log_out:
+            log_out.write("The following sequences were not assigned a pangolin lineage: \n")
+            [log_out.write(i + "\n") for i in df_unassigned['taxon']]
+        log_out.close()
+
+
 #index column should be strain
 #originally took rules.uk_add_previous_lineages_to_metadata.output.metadata from rule_1
 #will append new lineages to pango column
 rule redcap_add_pangolin_lineages_to_metadata:
     input:
         metadata = rules.redcap_add_del_finder_result_to_metadata.output.metadata,
-        lineages = rules.redcap_normal_pangolin.output.lineages
+        lineages = rules.filter_unassignable_lineage.output.lineages
     output:
         metadata = config["output_path"] + "/2/redcap.with_new_lineages.csv"
     log:
