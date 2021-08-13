@@ -52,7 +52,7 @@ rule redcap_filter_unassignable_lineage:
 rule redcap_add_pangolin_lineages_to_metadata:
     input:
         metadata = rules.redcap_add_del_finder_result_to_metadata.output.metadata,
-        lineages = rules.filter_unassignable_lineage.output.lineages
+        lineages = rules.redcap_filter_unassignable_lineage.output.lineages
     output:
         metadata = config["output_path"] + "/2/redcap.with_new_lineages.csv"
     log:
