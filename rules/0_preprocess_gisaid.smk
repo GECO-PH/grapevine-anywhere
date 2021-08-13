@@ -487,26 +487,25 @@ rule gisaid_normal_pangolin:
         """
 
 
-#need rule here for filtering '?' lineages
-rule filter_unassignable_lineage:
+rule gisaid_filter_unassignable_lineage:
     input:
         lineages = rules.gisaid_normal_pangolin.output.lineages
     output:
         lineages = config["output_path"] + "/0/normal_pangolin/lineage_report_filtered.csv"
     log:
-        config["output_path"] + "/logs/0_filter_unassignable_lineage.log"
+        config["output_path"] + "/logs/0_gisaid_filter_unassignable_lineage.log"
     run:
         import pandas as pd
 
         df = pd.read_csv(input.lineages)
 
-        df_filtered = df.loc[(df.lineage != '?')]
-        df_unassigned = df.loc[(df.lineage == '?')]
+        df_filtered = df.loc[df['lineage'].notnull()]
+        df_unassigned = df.loc[df['lineage'].isnull()]
 
         df_filtered.to_csv(output.lineages, index=False)
 
         with open(str(log), "w") as log_out:
-            log_out.write("The following sequences could not be assigned by pangolin: \n")
+            log_out.write("The following sequences were not assigned a pangolin lineage: \n")
             [log_out.write(i + "\n") for i in df_unassigned['taxon']]
         log_out.close()
 
@@ -514,7 +513,7 @@ rule filter_unassignable_lineage:
 rule gisaid_add_pangolin_lineages_to_metadata:
     input:
         metadata = rules.gisaid_add_AA_finder_result_to_metadata.output.metadata,
-        normal_lineages = rules.filter_unassignable_lineage.output.lineages
+        normal_lineages = rules.gisaid_filter_unassignable_lineage.output.lineages
     output:
         metadata = config["output_path"] + "/0/gisaid.RD.UH.SNPfinder.lineages.csv"
     log:
