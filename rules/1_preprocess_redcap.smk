@@ -8,16 +8,47 @@ rule get_redcap_metadata:
     output:
         metadata = config["output_path"] + "/1/redcap_metadata.csv"
     log:
-        config["output_path"] + "/logs/1_redcap_get_redcap_metadata.log"
+        config["output_path"] + "/logs/1_get_redcap_metadata.log"
     shell:
         """
         python {params.script} {input.redcap_db} {output.metadata} &> {log}
         """
 
+
+#filter out records if they exist in gisaid data
+rule deduplicate_gisaid:
+    input:
+        redcap_metadata = rules.get_redcap_metadata.output.metadata,
+        gisaid_metadata = rules.gisaid_output_all_matched_metadata.output.metadata
+    output:
+        metadata = config["output_path"] + "/1/redcap_metadata.gisaid_filtered.csv"
+    log:
+        config["output_path"] + "/logs/1_deduplicate_gisaid.log"
+    run:
+        import pandas as pd
+
+        redcap_df = pd.read_csv(input.redcap_metadata)
+        gisaid_df = pd.read_csv(input.gisaid_metadata)
+
+        gisaid_names = [i.split('/')[2] for i in gisaid_df.loc[:,'strain']]
+        gisaid_names_bool = redcap_df['gisaid_name'].isin(gisaid_names)
+        gisaid_names_inverse_bool = ~redcap_df['gisaid_name'].isin(gisaid_names)
+
+        redcap_filtered_df = redcap_df[gisaid_names_inverse_bool]
+        gisaid_duplicates_df = redcap_df[gisaid_names_bool]
+
+        redcap_filtered_df.to_csv(output.metadata, index=False)
+
+        with open(str(log), 'w') as log_out:
+            log_out.write("The following sequences were found in the input gisaid dataset and filtered out: \n")
+            [log_out.write(i + "\n") for i in gisaid_duplicates_df['gisaid_name']]
+        log_out.close()
+
+
 rule get_redcap_fasta:
     input:
         redcap_db = config["redcap_access"],
-        metadata = rules.get_redcap_metadata.output.metadata
+        metadata = rules.deduplicate_gisaid.output.metadata
     output:
         fasta = config["output_path"] + "/1/redcap_fasta.fasta"
     run:
