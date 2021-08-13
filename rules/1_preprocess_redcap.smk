@@ -793,6 +793,7 @@ lineage designation in the metadata file.
 
 
 #previously took rules.uk_add_previous_lineages_to_metadata.output.metadata as input
+#takes records without pango lineage for assignment in later rule
 rule redcap_extract_lineageless:
     input:
         fasta = rules.redcap_filter_omitted_sequences.output,
@@ -814,7 +815,7 @@ rule redcap_extract_lineageless:
 
         with open(str(output.fasta), 'w') as fasta_out:
             for i,row in df.iterrows():
-                if pd.isnull(row['pango']):
+                if pd.isnull(row['pango']) or row['pango']=='?':
                     sequence_name = row['strain']
                     if sequence_name in fasta_in:
                         if sequence_name not in sequence_record:
