@@ -70,8 +70,9 @@ rule filter_by_date:
 #removes identical sequences from fastas
 #why would this not be done sooner?
 #hashmap would contain names of fastas for identical sequences
-#the sequence name kept appears arbitrary
+#the sequence name kept appears arbitrary; the first encountered
 #outgroup fastas are retained
+#if there is more than one redundant name, they will be '|' delimited
 rule redcap_hash_seqs:
     input:
         fasta = rules.filter_by_date.output.fasta,
