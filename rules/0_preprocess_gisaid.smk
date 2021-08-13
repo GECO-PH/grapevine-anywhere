@@ -451,7 +451,7 @@ rule gisaid_extract_lineageless:
         with open(str(output.fasta), 'w') as fasta_out:
             if 'pango_lineage' in df.columns:
                 for i,row in df.iterrows():
-                    if pd.isnull(row['pango_lineage']):
+                    if pd.isnull(row['pango_lineage']) or row['pango_lineage']=='?':
                         sequence_name = row['strain']
                         if sequence_name in fasta_in:
                             if sequence_name not in sequence_record:
@@ -487,10 +487,34 @@ rule gisaid_normal_pangolin:
         """
 
 
+#need rule here for filtering '?' lineages
+rule filter_unassignable_lineage:
+    input:
+        lineages = rules.gisaid_normal_pangolin.output.lineages
+    output:
+        lineages = config["output_path"] + "/0/normal_pangolin/lineage_report_filtered.csv"
+    log:
+        config["output_path"] + "/logs/0_filter_unassignable_lineage.log"
+    run:
+        import pandas as pd
+
+        df = pd.read_csv(input.lineages)
+
+        df_filtered = df.loc[(df.lineage != '?')]
+        df_unassigned = df.loc[(df.lineage == '?')]
+
+        df_filtered.to_csv(output.lineages, index=False)
+
+        with open(str(log), "w") as log_out:
+            log_out.write("The following sequences could not be assigned by pangolin: \n")
+            [log_out.write(i + "\n") for i in df_unassigned['taxon']]
+        log_out.close()
+
+
 rule gisaid_add_pangolin_lineages_to_metadata:
     input:
         metadata = rules.gisaid_add_AA_finder_result_to_metadata.output.metadata,
-        normal_lineages = rules.gisaid_normal_pangolin.output.lineages
+        normal_lineages = rules.filter_unassignable_lineage.output.lineages
     output:
         metadata = config["output_path"] + "/0/gisaid.RD.UH.SNPfinder.lineages.csv"
     log:
