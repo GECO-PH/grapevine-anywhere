@@ -151,7 +151,6 @@ rule format_redcap_fasta_header_and_strain:
                 gisaid_name = row["gisaid_name"]
                 year = row["sample_date"].split('-')[0]
                 new_header = "hCoV-19/" + params.country + "/" + gisaid_name + "/" + year
-                print(new_header)
                 new_strain_col.append(new_header)
 
                 record = fasta_in[fasta_header]
