@@ -162,17 +162,38 @@ rule insert_redcap_seqs:
         config["output_path"] + "/logs/4_replace_redcap_seqs.log"
     resources: 
         mem_per_cpu=20000
-    shell:
-        """
-        sed -i.bak "s/'//g" {input.grafted_tree} 2> {log}
+    run:
+        shell("""
+            sed -i.bak "s/'//g" {input.grafted_tree} 2> {log}
+        """)
 
-        jclusterfunk insert \
-            -i {input.grafted_tree} \
-            --metadata {input.metadata} \
-            --unique-only \
-            --format newick \
-            -o {output.grafted_tree_expanded_redcap} 2>> {log}
-        """
+        import re
+
+        with open(str(input.metadata), 'r') as labels_handle:
+            next(labels_handle) #skip header
+            labels = {}
+            for i in labels_handle.readlines():
+                line = i.replace(',','|').strip() #using '|' as ',' is already used
+                tip = line.split('|')[0]
+                redundant = line
+                labels[tip] = redundant
+        labels_handle.close()
+
+        with open(str(input.grafted_tree), 'r') as tree_handle, open(str(output.grafted_tree_expanded_redcap), 'w') as tree_out:
+            tree = tree_handle.read()
+            for tip,redundant in labels.items():
+                phrase = re.compile(tip) #tip used as regex
+                tree = phrase.sub(redundant, tree) #substitute tip with tip+redundant
+            tree_out.write(tree)
+        tree_handle.close()
+        tree_out.close()
+
+#        jclusterfunk insert \
+#            -i {input.grafted_tree} \
+#            --metadata {input.metadata} \
+#            --unique-only \
+#            --format newick \
+#            -o {output.grafted_tree_expanded_redcap} 2>> {log}
 
 
 rule sort_collapse:
