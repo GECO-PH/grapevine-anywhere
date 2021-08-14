@@ -71,55 +71,12 @@ rule get_redcap_fasta:
         f.close()
 
 
-#for formatting fasta record names
-rule format_redcap_fasta_header:
-    input:
-        fasta = rules.get_redcap_fasta.output.fasta
-    output:
-        fasta = config["output_path"] + "/1/redcap_formatted.fasta"
-    log:
-        config["output_path"] + "/logs/1_redcap_strip_header_digits.log"
-    run:
-        from Bio import SeqIO
-        
-        fasta_in = SeqIO.parse(str(input.fasta), "fasta")
-        with open(str(output.fasta), 'w') as f:
-            for record in fasta_in:
-                new_header = record.id.split("|")[0]
-                f.write(">" + new_header + "\n")
-                f.write(str(record.seq) + "\n")
-        f.close()
-
-
-#need to change 'strain'
-rule add_strain:
-    input:
-        metadata = rules.deduplicate_gisaid.output.metadata,
-        fasta = rules.format_redcap_fasta_header.output.fasta
-    output:
-        metadata = config["output_path"] + "/1/redcap_metadata.strain.csv"
-    run:
-        import pandas as pd
-        from Bio import SeqIO
-        
-        df = pd.read_csv(input.metadata)
-
-        strain = []
-
-        fasta_in = SeqIO.parse(str(input.fasta), "fasta")
-        for record in fasta_in:
-            strain.append(record.description)
-
-        df['strain'] = strain
-        df.to_csv(output.metadata, index=False, sep=",")
-
-
 #add sample date column based on collection date or received date
 #originally took config["latest_uk_metadata"] as input
 #there's already a function for this in datafunk/fastafunk, should probably use that
 rule add_sample_date:
     input:
-        metadata = rules.add_strain.output.metadata
+        metadata = rules.deduplicate_gisaid.output.metadata
     output:
         metadata = config["output_path"] + "/1/redcap_metadata.strain.sample_date.csv"
     log:
@@ -144,6 +101,65 @@ rule add_sample_date:
 
         df['sample_date'] = sample_date
         df.to_csv(output.metadata, index=False, sep = ",")
+
+
+rule add_strain:
+    input:
+        metadata = rules.add_sample_date.output.metadata,
+        fasta = rules.get_redcap_fasta.output.fasta
+    output:
+        metadata = config["output_path"] + "/1/redcap_metadata.strain.csv"
+    run:
+        import pandas as pd
+        from Bio import SeqIO
+        
+        df = pd.read_csv(input.metadata)
+
+        strain = []
+
+        fasta_in = SeqIO.parse(str(input.fasta), "fasta")
+        for record in fasta_in:
+            strain.append(record.description)
+
+        df['strain'] = strain
+        df.to_csv(output.metadata, index=False, sep=",")
+
+
+rule format_redcap_fasta_header_and_strain:
+    input:
+        fasta = rules.get_redcap_fasta.output.fasta,
+        metadata = rules.add_strain.output.metadata
+    params:
+        country = config["country"].capitalize()
+    output:
+        fasta = config["output_path"] + "/1/redcap_formatted.fasta",
+        metadata = config["output_path"] + "/1/redcap_metadata.strain.formatted.csv"
+    log:
+        config["output_path"] + "/logs/1_redcap_strip_header_digits.log"
+    run:
+        import pandas as pd
+        from Bio import SeqIO
+
+        df = pd.read_csv(input.metadata)
+        fasta_in = SeqIO.index(str(input.fasta), "fasta")
+
+        new_strain_col = []
+
+        with open(str(output.fasta), 'w') as fasta_out:
+            for i,row in df.iterrows():
+                fasta_header = row["strain"].split(" ")[0] #split by whitespace since fasta headers may have them and then 'fasta_in[fasta_header]' will throw an KeyError
+                gisaid_name = row["gisaid_name"]
+                year = row["sample_date"].split('-')[0]
+                new_header = "hCoV-19/" + params.country + "/" + gisaid_name + "/" + year
+                print(new_header)
+                new_strain_col.append(new_header)
+
+                record = fasta_in[fasta_header]
+                fasta_out.write(">" + new_header + "\n")
+                fasta_out.write(str(record.seq) + "\n")
+
+        df['strain'] = new_strain_col
+        df.to_csv(output.metadata, index=False)
 
 
 #not necessary
@@ -251,8 +267,8 @@ rule add_sample_date:
 #annotate adds length, missing and gaps columns
 rule annotate_to_remove_duplicates:
     input:
-        fasta = rules.format_redcap_fasta_header.output.fasta,
-        metadata = rules.add_sample_date.output.metadata
+        fasta = rules.format_redcap_fasta_header_and_strain.output.fasta,
+        metadata = rules.format_redcap_fasta_header_and_strain.output.metadata
     output:
         metadata = config["output_path"] + "/1/redcap_latest.add_sample_date.add_sequence_name.accessions.annotated.csv"
     log:
@@ -274,7 +290,7 @@ rule annotate_to_remove_duplicates:
 #need to make sure method of calculating coverage is okay
 rule add_coverage_column:
     input:
-        fasta = rules.format_redcap_fasta_header.output.fasta,
+        fasta = rules.format_redcap_fasta_header_and_strain.output.fasta,
         metadata = rules.annotate_to_remove_duplicates.output.metadata
     output:
         metadata = config["output_path"] + "/1/redcap_latest.add_sample_date.add_sequence_name.accessions.annotated.covg.csv"
@@ -496,7 +512,7 @@ rule add_epi_week:
 #current length threshold: 29000
 rule redcap_filter_by_length:
     input:
-        fasta = rules.format_redcap_fasta_header.output.fasta
+        fasta = rules.format_redcap_fasta_header_and_strain.output.fasta
     params:
         min_length = config["min_length"]
     output:
@@ -938,7 +954,7 @@ rule redcap_add_dups_to_lineageless:
 #        curl -X POST -H "Content-type: application/json" -d @{params.json_path}/1_data.json {params.grapevine_webhook}
 rule summarize_preprocess_uk:
     input:
-        raw_fasta = rules.format_redcap_fasta_header.output.fasta,
+        raw_fasta = rules.format_redcap_fasta_header_and_strain.output.fasta,
         #deduplicated_fasta_by_covid = rules.uk_remove_duplicates_COGID_by_gaps.output.fasta,
         #deduplicated_fasta_by_biosampleid = rules.uk_remove_duplicates_biosamplesourceid_by_date.output.fasta,
         #deduplicated_fasta_by_rootbiosample = rules.uk_remove_duplicates_root_biosample_by_gaps.output.fasta,
