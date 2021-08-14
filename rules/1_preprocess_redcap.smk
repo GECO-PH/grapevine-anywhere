@@ -67,8 +67,7 @@ rule get_redcap_fasta:
         with open(str(output.fasta), 'wb') as f:
             for i in proj_df.index:
                 file_contents, headers = proj.export_file((str(i)), 'consensus')
-                f.write(file_contents)
-        
+                f.write(file_contents)        
         f.close()
 
 
@@ -89,13 +88,13 @@ rule format_redcap_fasta_header:
                 new_header = record.id.split("|")[0]
                 f.write(">" + new_header + "\n")
                 f.write(str(record.seq) + "\n")
-
         f.close()
 
 
+#need to change 'strain'
 rule add_strain:
     input:
-        metadata = rules.get_redcap_metadata.output.metadata,
+        metadata = rules.deduplicate_gisaid.output.metadata,
         fasta = rules.format_redcap_fasta_header.output.fasta
     output:
         metadata = config["output_path"] + "/1/redcap_metadata.strain.csv"
