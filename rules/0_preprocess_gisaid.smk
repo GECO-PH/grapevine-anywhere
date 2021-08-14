@@ -22,7 +22,7 @@
 
 
 #gisaid_unify_headers standardises sequence names in both fasta and metadata files
-#this isn't necessary for current nextstrain data
+#this isn't necessary for current gisaid data
 #rule gisaid_unify_headers:
 #    input:
 #        fasta = config["gisaid_fasta"],
@@ -44,7 +44,7 @@
 #        sequence_name = []
 #
 #        #start writing to output fasta
-#        #
+#
 #        with open(str(output.fasta), 'w') as fasta_out:
 #            for i,row in df.iterrows():
 #                edin_header = row["edin_header"]
