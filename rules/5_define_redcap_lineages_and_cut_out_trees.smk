@@ -280,7 +280,7 @@ rule get_redcap_phylotypes_csv:
         do
             LIN=`echo ${{FILE}} | rev | cut -d"/" -f1 | rev | cut -d"." -f1`
             clusterfunk extract_tip_annotations \
-              --traits country phylotype \
+              --traits phylotype \
               --input ${{FILE}} \
               --output {output.csvdir}/${{LIN}}.csv
         done 2>> {log}
@@ -324,15 +324,15 @@ rule combine_phylotypes_csv:
 
         mypath = str(input.csvdir)
 
-        print(mypath)
+        #print(mypath)
 
         files = glob.glob(os.path.join(mypath, "*csv"))
         
-        print(files)
+        #print(files)
 
         dfs = [pd.read_csv(x) for x in files]
 
-        print(dfs)
+        #print(dfs)
 
         result = pd.concat(dfs)
         result.to_csv(output[0], index=False)
