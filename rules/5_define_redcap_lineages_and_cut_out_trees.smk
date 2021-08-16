@@ -339,6 +339,61 @@ rule combine_phylotypes_csv:
         result.to_csv(output[0], index=False)
 
 
+#adding country lineage column to metadata from rule 2
+#for import to redcap
+rule add_country_lineage_to_redcap_metadata:
+    input:
+        metadata = rules.redcap_add_pangolin_lineages_to_metadata.output.metadata,
+        lineage = rules.merge_and_create_new_redcap_lineages.output
+    params:
+        country_code = config["country_code"]
+    output:
+        metadata = config["output_path"] + "/5/redcap_metadata.with_country_lineage.csv"
+    log:
+        config["output_path"] + "/logs/5_add_phylotypes_to_redcap_metadata.log"
+    shell:
+        """
+        fastafunk add_columns \
+          --in-metadata {input.metadata} \
+          --in-data {input.lineage} \
+          --index-column strain \
+          --join-on taxon \
+          --new-columns {params.country_code}_cluster \
+          --where-column {params.country_code}_cluster={params.country_code}_lineage\
+          --out-metadata {output.metadata} &>> {log}
+        """
+
+
+rule get_country_lineage_for_analysis_instrument_and_import_to_redcap:
+    input:
+        metadata = rules.add_country_lineage_to_redcap_metadata.output.metadata,
+        redcap_db = config["redcap_access"]
+    output:
+        metadata = config["output_path"] + "/5/analysis_instrument_phylotype.csv"
+    run:
+        import redcap
+        import pandas as pd
+
+        with open(input.redcap_db, 'r') as f:
+            read_file = f.read().strip('\n')
+            url = read_file.split(',')[0]
+            key = read_file.split(',')[1]
+        f.close()
+
+        proj = redcap.Project(url, key)
+        df = pd.read_csv(input.metadata)
+
+        #select columns necessary for import
+        df = df.loc[:,['central_id', 'redcap_repeat_instance', 'ph_cluster']]
+
+        #add column necessary for import
+        df.insert(1, 'redcap_repeat_instrument', 'Analysis')
+        df.loc[:,'redcap_repeat_instrument'] = df.loc[:,'redcap_repeat_instrument'].str.casefold()
+
+        proj.import_records(df)
+        df.to_csv(output.metadata, index=False)
+
+
 rule merge_with_metadata:
     input:
         metadata = rules.update_lineage_metadata.output.all_metadata,
@@ -392,7 +447,8 @@ rule annotate_phylotypes:
 rule summarize_define_redcap_lineages_and_cut_out_trees:
     input:
         annotated_tree = rules.annotate_phylotypes.output.annotated_tree,
-#        sankey_plot = rules.step_5_generate_sankey_plot.output.plot
+#        sankey_plot = rules.step_5_generate_sankey_plot.output.plot,
+        import_country_lineage = rules.get_country_lineage_for_analysis_instrument_and_import_to_redcap.output.metadata
     params:
 #        grapevine_webhook = config["grapevine_webhook"],
 #        json_path = config["json_path"],  
