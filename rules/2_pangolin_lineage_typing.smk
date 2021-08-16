@@ -70,8 +70,6 @@ rule redcap_add_pangolin_lineages_to_metadata:
         """
 
 
-#currently, no lineage reassignment will occur
-#maybe check which columns are actually needed
 rule get_filled_analysis_instrument:
     input:
         metadata = rules.redcap_add_pangolin_lineages_to_metadata.output.metadata
@@ -88,14 +86,13 @@ rule get_filled_analysis_instrument:
 
         df = df.loc[:,['central_id', 'redcap_repeat_instance', \
                         'consensus', 'ave_depth', 'sequence_length', \
-                        'missing', 'gaps', 'pango', 'lineage_support', 'pango_version', \
-                        'ph_cluster', 'p323l', 'd614g', 'n439k', \
-                        'del_1605_3', 'epi_week', 'analysis_complete']]
+                        'missing', 'gaps', 'pango', 'lineage_support', \
+                        'pango_version', 'p323l', 'd614g', \
+                        'n439k', 'del_1605_3', 'epi_week']]
 
         df.to_csv(output.metadata, index=False)
 
 
-#would be more appropriate to move this and previous rule to later stage, when ph_cluster/ph_lineage would be filled in
 rule import_analysis_instrument_to_redcap:
     input:
         metadata = rules.get_filled_analysis_instrument.output.metadata,
@@ -116,7 +113,6 @@ rule import_analysis_instrument_to_redcap:
         df = pd.read_csv(input.metadata)
         df.insert(1, 'redcap_repeat_instrument', 'Analysis')
         df.loc[:,'redcap_repeat_instrument'] = df.loc[:,'redcap_repeat_instrument'].str.casefold()
-        df.loc[:,'analysis_complete'] = df.loc[:,'analysis_complete'].map(dict(Complete=1, Incomplete=0))
 
         #convert missing column to percentage
         df.loc[:,'missing'] = df.loc[:,'missing'].apply(lambda x:round(x*100,2))
