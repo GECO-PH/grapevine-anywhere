@@ -217,9 +217,7 @@ rule sort_collapse:
 
 #also need to make sure redcap data was integrated correctly
 #this uses the expanded combined so that redundant/alias sequence names are added to the same tip
-#separate capitalised country param defined as regex is case sensitive
-#yes, i know it looks silly
-#BIG BUG: for some reason, lineage trait in philippines tips are pango version dates rather than pango lineage
+#separate capitalised country param required because regex is case sensitive
 rule step_4_annotate_tree:
     input:
         tree = rules.sort_collapse.output.sorted_collapsed_tree,

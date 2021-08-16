@@ -206,6 +206,7 @@ rule dequote_tree:
 
 #country info not in tips but that's because this pipeline was originally dealing with all UK countries
 #PH has only itself, so country info is unnecessary
+#wrong, some redcap records have china as country
 rule cut_out_trees:
     input:
         full_tree = rules.dequote_tree.output.tree,
