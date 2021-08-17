@@ -23,12 +23,19 @@ def get_redcap_metadata(url, key, outpath):
     proj = redcap.Project(url, key)
     proj_df = proj.export_records(format='df', forms=['case','analysis'], raw_or_label='label')
 
+    #init variables for logging
+    init_cent_id_count = len(set(proj_df.index))
+    no_consensus = {}
+    no_dates = {}
+
     #first filter out rows without consensus
     for i in set(proj_df.index):
         if type(proj_df.consensus[i]) == float: #a lone row not containing a fasta will be filtered
+            no_consensus[i] = proj_df.loc[i,'gisaid_name']
             proj_df.drop(i, inplace=True)
             continue
         if not any(~proj_df.consensus[i].isna()): #IDs containing no fastas will be filtered
+            no_consensus[i] = proj_df.loc[i,'gisaid_name']
             proj_df.drop(i, inplace=True)
 
     #set multiindex to create unique keys
@@ -43,6 +50,7 @@ def get_redcap_metadata(url, key, outpath):
         for j in temp_index:
             dates_df = proj_df.loc[(i,'Case',j),:]
             if not any(~dates_df[['date_collected', 'date_received']].isna()): #if both date columns are NaN
+                no_dates[i] = proj_df.loc[(i,'Case',j),'gisaid_name']
                 proj_df.drop(proj_df.loc[(i,slice(None),j),:].index, inplace=True) #drop case and analysis repeat instance
 
     #filter repeat instances based on date
@@ -81,6 +89,38 @@ def get_redcap_metadata(url, key, outpath):
     merged_df = case_df.join(analysis_df)
 
     merged_df.to_csv(outpath, sep=',')
+
+    #logging
+    print("#################################################\n")
+    print("Successfully read " + str(init_cent_id_count) + " unique Central IDs.\n")
+    print("#################################################\n")
+
+    print("The following records did not have a consensus sequence and were filtered:\n")
+    for key,val in no_consensus.items():
+        cent_id = key
+        gisaid_name = val
+        if type(val) == pd.core.series.Series: #there is currently an odd case where central id 11-2 has multiple analysis repeats without a consensus seq, probably for testing
+            for i in val:
+                if type(i) == str:
+                    gisaid_name = i
+                    break
+                else:
+                    continue
+        print("Central ID: " + str(cent_id) + ", Gisaid Name: " + str(gisaid_name) + "\n")
+    print("Total of " + str(len(no_consensus)) + " records.\n")
+
+    print("#################################################\n")
+
+    print("The following records did not have any date information and were filtered:\n")
+    for key,val in no_dates.items():
+        cent_id = key
+        gisaid_name = val
+        print("Central ID: " + str(cent_id) + ", Gisaid Name: " + str(gisaid_name) + "\n")
+    print("Total of " + str(len(no_dates)) + " records.\n")
+
+    print("#################################################\n")
+    print("Number of records retained:\n" + str(len(merged_df)) + "\n")
+    print("#################################################\n")
 
 
 if __name__ == "__main__":
