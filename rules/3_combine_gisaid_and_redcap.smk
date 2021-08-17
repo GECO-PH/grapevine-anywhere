@@ -242,7 +242,7 @@ rule combine_gisaid_and_redcap_expanded:
         gisaid_fasta = rules.gisaid_output_lineage_table.output.fasta,
         gisaid_metadata = rules.gisaid_output_lineage_table.output.metadata,
         redcap_fasta = rules.redcap_output_lineage_table.output.fasta,
-        redcap_metadata = rules.redcap_output_hashed_lineage_table.output.metadata
+        redcap_metadata = rules.redcap_output_lineage_table.output.metadata
     output:
         fasta = config["output_path"] + "/3/redcap_gisaid.expanded.fasta",
         metadata = config["output_path"] + "/3/redcap_gisaid.lineages.expanded.csv"
