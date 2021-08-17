@@ -173,8 +173,8 @@ rule insert_redcap_seqs:
             next(labels_handle) #skip header
             labels = {}
             for i in labels_handle.readlines():
-                line = i.replace(',','|').strip() #using '|' as ',' is already used
-                tip = line.split('|')[0]
+                line = "(" + i.replace(',',':0.0,').strip() + ":0.0)" #making expanded tips
+                tip = line.strip('(').split(':')[0]
                 redundant = line
                 labels[tip] = redundant
         labels_handle.close()
