@@ -26,7 +26,7 @@ rule all:
         config["output_path"] + "/logs/4_summarize_make_trees.log",
         config["output_path"] + "/logs/3_summarize_combine_gisaid_and_redcap.log",
         config["output_path"] + "/logs/2_summarize_pangolin_lineage_typing.log",
-        config["output_path"] + "/logs/1_summarize_preprocess_redcap.log",
+        config["output_path"] + "/logs/1_summarise_preprocess_redcap.log",
         config["output_path"] + "/logs/0_summarize_preprocess_gisaid.log",
 #        config["output_path"] + "/snakejunk/all"
 
