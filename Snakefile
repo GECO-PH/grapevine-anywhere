@@ -22,12 +22,12 @@ if not config.get("date"):
 rule all:
     input:
 #        config["output_path"] + "/logs/6_summarize_publish.log",
-        config["output_path"] + "/logs/5_summarize_define_redcap_lineages_and_cut_out_trees.log",
-        config["output_path"] + "/logs/4_summarize_make_trees.log",
-        config["output_path"] + "/logs/3_summarize_combine_gisaid_and_redcap.log",
-        config["output_path"] + "/logs/2_summarize_pangolin_lineage_typing.log",
+        config["output_path"] + "/logs/5_summarise_define_redcap_lineages_and_cut_out_trees.log",
+        config["output_path"] + "/logs/4_summarise_make_trees.log",
+        config["output_path"] + "/logs/3_summarise_combine_gisaid_and_redcap.log",
+        config["output_path"] + "/logs/2_summarise_pangolin_lineage_typing.log",
         config["output_path"] + "/logs/1_summarise_preprocess_redcap.log",
-        config["output_path"] + "/logs/0_summarize_preprocess_gisaid.log",
+        config["output_path"] + "/logs/0_summarise_preprocess_gisaid.log",
 #        config["output_path"] + "/snakejunk/all"
 
 #clean_up doesn't appear to be used at this stage

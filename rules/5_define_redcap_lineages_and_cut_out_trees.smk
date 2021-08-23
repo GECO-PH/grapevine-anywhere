@@ -444,7 +444,7 @@ rule annotate_phylotypes:
 #        echo '"}}' >> {params.json_path}/5b_data.json
 #        echo "webhook {params.grapevine_webhook}"
 #        curl -X POST -H "Content-type: application/json" -d @{params.json_path}/5b_data.json {params.grapevine_webhook}
-rule summarize_define_redcap_lineages_and_cut_out_trees:
+rule summarise_define_redcap_lineages_and_cut_out_trees:
     input:
         annotated_tree = rules.annotate_phylotypes.output.annotated_tree,
 #        sankey_plot = rules.step_5_generate_sankey_plot.output.plot,
@@ -454,7 +454,7 @@ rule summarize_define_redcap_lineages_and_cut_out_trees:
 #        json_path = config["json_path"],  
 #        date = config["date"]
     log:
-        config["output_path"] + "/logs/5_summarize_define_redcap_lineages_and_cut_out_trees.log"
+        config["output_path"] + "/logs/5_summarise_define_redcap_lineages_and_cut_out_trees.log"
     shell:
         """
         echo "5_subroutine complete" &>> {log}

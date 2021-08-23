@@ -6,7 +6,7 @@
 #but might we want to allow for lineage re-assignment?
 rule redcap_normal_pangolin:
     input:
-#        previous_stage = config["output_path"] + "/logs/1_summarize_preprocess_uk.log",
+#        previous_stage = config["output_path"] + "/logs/1_summarise_preprocess_uk.log",
         fasta = rules.redcap_add_dups_to_lineageless.output.fasta
     params:
         outdir = config["output_path"] + "/2/normal_pangolin",
@@ -174,7 +174,7 @@ rule redcap_output_lineage_table:
 #commented out as it doesn't seem immediately useful
 #had to include 'analysis_form' input to upload to redcap
 #there's probably a better way of doing that
-rule summarize_pangolin_lineage_typing:
+rule summarise_pangolin_lineage_typing:
     input:
         fasta = rules.redcap_output_lineage_table.output.fasta,
         metadata = rules.redcap_output_lineage_table.output.metadata,
@@ -184,7 +184,7 @@ rule summarize_pangolin_lineage_typing:
         json_path = config["json_path"],
         date = config["date"]
     log:
-        config["output_path"] + "/logs/2_summarize_pangolin_lineage_typing.log"
+        config["output_path"] + "/logs/2_summarise_pangolin_lineage_typing.log"
 #    shell:
 #        """
 #        echo '{{"text":"' > {params.json_path}/2_data.json

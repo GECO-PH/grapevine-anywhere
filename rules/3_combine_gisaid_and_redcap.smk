@@ -211,7 +211,7 @@ rule gisaid_output_lineage_table:
 #passed to split_by_lineages
 rule combine_gisaid_and_redcap:
     input:
-        previous_stage = config["output_path"] + "/logs/2_summarize_pangolin_lineage_typing.log",
+        previous_stage = config["output_path"] + "/logs/2_summarise_pangolin_lineage_typing.log",
         gisaid_fasta = rules.gisaid_output_lineage_table.output.fasta,
         gisaid_metadata = rules.gisaid_output_lineage_table.output.metadata,
         redcap_fasta = rules.redcap_hash_seqs.output.fasta,
@@ -238,7 +238,7 @@ rule combine_gisaid_and_redcap:
 #uses unhashed fastas
 rule combine_gisaid_and_redcap_expanded:
     input:
-        previous_stage = config["output_path"] + "/logs/2_summarize_pangolin_lineage_typing.log",
+        previous_stage = config["output_path"] + "/logs/2_summarise_pangolin_lineage_typing.log",
         gisaid_fasta = rules.gisaid_output_lineage_table.output.fasta,
         gisaid_metadata = rules.gisaid_output_lineage_table.output.metadata,
         redcap_fasta = rules.redcap_output_lineage_table.output.fasta,
@@ -269,7 +269,7 @@ rule combine_gisaid_and_redcap_expanded:
 #        echo "webhook {params.grapevine_webhook}"
 #        curl -X POST -H "Content-type: application/json" -d @{params.json_path}/3_data.json {params.grapevine_webhook}
 #as they weren't necessary
-rule summarize_combine_gisaid_and_redcap:
+rule summarise_combine_gisaid_and_redcap:
     input:
         redcap_hashed_fasta = rules.redcap_hash_seqs.output.fasta,
         fasta = rules.combine_gisaid_and_redcap.output.fasta,
@@ -281,7 +281,7 @@ rule summarize_combine_gisaid_and_redcap:
         json_path = config["json_path"],
         date = config["date"]
     log:
-        config["output_path"] + "/logs/3_summarize_combine_gisaid_and_redcap.log"
+        config["output_path"] + "/logs/3_summarise_combine_gisaid_and_redcap.log"
     shell:
         """
         echo "> Number of sequences in total REDCap and GISAID matched files for later steps: $(cat {input.full_fasta} | grep ">" | wc -l)\\n" &>> {log}

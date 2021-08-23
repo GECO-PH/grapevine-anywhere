@@ -928,7 +928,7 @@ rule check_root_pangolin_lineages:
 #commenting out doesn't work, need to remove?
 #for all removed 'echo' lines, see previous version of rule 0 file
 #echo "Number of non-UK sequences: $(cat {input.global_fasta} | grep '>' | wc -l)\\n" >> {log}
-rule summarize_preprocess_gisaid:
+rule summarise_preprocess_gisaid:
     input:
         latest_fasta = rules.gisaid_remove_duplicates.input.fasta,
         deduplicated_fasta = rules.gisaid_remove_duplicates.output.fasta,
@@ -955,7 +955,7 @@ rule summarize_preprocess_gisaid:
         grapevine_webhook = config["grapevine_webhook"],
         date = config["date"]
     log:
-        config["output_path"] + "/logs/0_summarize_preprocess_gisaid.log"
+        config["output_path"] + "/logs/0_summarise_preprocess_gisaid.log"
     shell:
         """
         mkdir -p {params.publish_path}

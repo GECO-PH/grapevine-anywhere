@@ -33,7 +33,7 @@ with open((os.getcwd()+"/"+(config["lineage_splits"]))) as lineage_fh:
 #        curl -X POST -H "Content-type: application/json" -d @{params.json_path}/4a_data.json {params.grapevine_webhook}
 rule split_based_on_lineages:
     input:
-        previous_stage = config["output_path"] + "/logs/3_summarize_combine_gisaid_and_redcap.log",
+        previous_stage = config["output_path"] + "/logs/3_summarise_combine_gisaid_and_redcap.log",
         fasta = config["output_path"] + "/3/redcap_gisaid.fasta",
         metadata = config["output_path"] + "/3/redcap_gisaid.lineages.csv",
         lineage = config["lineage_splits"],
@@ -424,7 +424,7 @@ rule add_lin_to_annotations:
 #        echo '"}}' >> 4b_data.json
 #        echo "webhook {params.grapevine_webhook}"
 #        curl -X POST -H "Content-type: application/json" -d @4b_data.json {params.grapevine_webhook}
-rule summarize_make_trees:
+rule summarise_make_trees:
     input:
         traits = rules.output_annotations.output.traits,
         public_tree = rules.sort_collapse.output.sorted_collapsed_tree,
@@ -434,7 +434,7 @@ rule summarize_make_trees:
         grapevine_webhook = config["grapevine_webhook"],
         date = config["date"]
     log:
-        config["output_path"] + "/logs/4_summarize_make_trees.log"
+        config["output_path"] + "/logs/4_summarise_make_trees.log"
     shell:
         """
         echo "> Total number of sequences in tree before expanding: $(gotree stats tips -i {input.grafted_tree} | tail -n+2 | wc -l)\\n" > {log}
