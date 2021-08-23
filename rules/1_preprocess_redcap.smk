@@ -1,17 +1,23 @@
 import os
 
+#output.summary used until issue with liburl and chardet warning is resolved
+#maybe summaries and tables should be under log rather than output
 rule get_redcap_metadata:
     input:
         redcap_db = config["redcap_access"]
     params:
         script = os.path.join(workflow.current_basedir, "../utilities/get_redcap_metadata.py")
     output:
-        metadata = config["output_path"] + "/1/redcap_metadata.csv"
+        metadata = config["output_path"] + "/1/redcap_metadata.csv",
+        summary = config["output_path"] + "/1/get_redcap_metadata_summary.txt",
+        no_consensus_table = config["output_path"] + "/1/redcap_records_without_consensus.csv",
+        no_dates_table = config["output_path"] + "/1/redcap_records_without_dates.csv"
     log:
         config["output_path"] + "/logs/1_get_redcap_metadata.log"
     shell:
         """
-        python {params.script} {input.redcap_db} {output.metadata} &> {log}
+        python {params.script} {input.redcap_db} {output.metadata} \
+               {output.summary} {output.no_consensus_table} {output.no_dates_table} &> {log}
         """
 
 
@@ -186,9 +192,7 @@ rule format_redcap_fasta_header_and_strain:
 #        df.to_csv(output.metadata, index=False, sep = ",")
 
 
-#sequence names are used to make unified fasta headers
-#is this necessary at the moment? skip for now
-#maybe it makes more informative trees
+#already have rule for formatting fasta header and strain column
 #rule uk_make_sequence_name:
 #    input:
 #        metadata = rules.uk_add_pillar_2.output.metadata,
@@ -312,9 +316,10 @@ rule add_coverage_column:
         df.to_csv(output.metadata, index=False)
 
 
-#not sure under what conditions there would be duplicate local sample IDs
-#skip for now
-#add rule for deduplicating by gisaid_id between gisaid and redcap data
+#fasta sequences deduplicated based on which has the fewest gaps
+#we currently don't have a good way to deal with linking repeat instruments in redcap
+#so at the moment there are no duplicate central IDs at this point
+#because they are removed during the 'get_redcap_metadata' rule
 #rule uk_remove_duplicates_COGID_by_gaps:
 #    input:
 #        fasta = rules.uk_strip_header_digits.output.fasta,
@@ -461,8 +466,7 @@ rule add_epi_week:
 #        """
 
 
-#do fasta headers need to be unified?
-#skip for now
+#already have rule for formatting fasta header and strain columns
 #rule uk_unify_headers:
 #    input:
 #        fasta = rules.uk_remove_duplicates_root_biosample_by_gaps.output.fasta,
@@ -872,6 +876,7 @@ rule redcap_extract_lineageless:
 
 #dup logs commented out for now
 #previously took rules.uk_add_previous_lineages_to_metadata.output.metadata as input
+#not doing anything at the moment since deduplicating rules aren't in use
 rule redcap_add_dups_to_lineageless:
     input:
         master_fasta = rules.redcap_filter_omitted_sequences.output.fasta,
@@ -942,42 +947,46 @@ rule redcap_add_dups_to_lineageless:
 #        echo "> Number of sequences after deduplication by bio_sample_id: $(cat {input.deduplicated_fasta_by_biosampleid} | grep ">" | wc -l)\\n" &>> {log}
 #        echo "> Number of sequences after deduplication by root_source_biosample_id: $(cat {input.deduplicated_fasta_by_rootbiosample} | grep ">" | wc -l)\\n" &>> {log}
 #        echo "> Number of sequences after unifying headers: $(cat {input.unify_headers_fasta} | grep ">" | wc -l)\\n" &>> {log}
+#        echo "> Number of sequences after mapping: $(cat {input.removed_low_covg_fasta} | grep ">" | wc -l)\\n" &>> {log}
+#        echo "> Number of sequences after removing those in omissions file: $(cat {input.removed_omitted_fasta} | grep ">" | wc -l)\\n" &>> {log}
 #
 #        echo "> Number of new/deduped sequences passed to Pangolin for typing: $(cat {input.pangolin_fasta} | grep ">" | wc -l)\\n" &>> {log}
 #
-#       echo '{{"text":"' > {params.json_path}/1_data.json
-#       echo "*Step 1: {params.date} COG-UK preprocessing complete*\\n" >> {params.json_path}/1_data.json
-#        cat {log} >> {params.json_path}/1_data.json
-#        echo '"}}' >> {params.json_path}/1_data.json
-#        echo "webhook {params.grapevine_webhook}"
-#        curl -X POST -H "Content-type: application/json" -d @{params.json_path}/1_data.json {params.grapevine_webhook}
-rule summarize_preprocess_uk:
+rule summarise_preprocess_redcap:
     input:
+        webhook = config["webhook"],
+        metadata_consensus_and_date_filter = rules.get_redcap_metadata.output.summary,
+        deduplicated_metadata_by_gisaid = rules.deduplicate_gisaid.output.metadata,
         raw_fasta = rules.format_redcap_fasta_header_and_strain.output.fasta,
         #deduplicated_fasta_by_covid = rules.uk_remove_duplicates_COGID_by_gaps.output.fasta,
         #deduplicated_fasta_by_biosampleid = rules.uk_remove_duplicates_biosamplesourceid_by_date.output.fasta,
         #deduplicated_fasta_by_rootbiosample = rules.uk_remove_duplicates_root_biosample_by_gaps.output.fasta,
         #unify_headers_fasta = rules.uk_unify_headers.output.fasta,
-        removed_low_covg_fasta = rules.redcap_filter_low_coverage_sequences.output.fasta,
+        low_length_fasta_filter = rules.redcap_filter_by_length.output.fasta,
+        low_covg_fasta_filter = rules.redcap_filter_low_coverage_sequences.output.fasta,
         removed_omitted_fasta = rules.redcap_filter_omitted_sequences.output.fasta,
         full_unmasked_alignment = rules.redcap_full_untrimmed_alignment.output.fasta,
         full_metadata = rules.redcap_add_del_finder_result_to_metadata.output.metadata,
         #full_metadata = rules.uk_add_previous_lineages_to_metadata.output.metadata,
         #pangolin_fasta = rules.uk_add_dups_to_lineageless.output.fasta,
-        variants = rules.redcap_get_variants.output.variants,
+        variants = rules.redcap_get_variants.output.variants
     params:
         #grapevine_webhook = config["grapevine_webhook"],
-        #json_path = config["json_path"],
+        json_path = config["json_path"],
         date=config["date"]
     log:
-        config["output_path"] + "/logs/1_summarize_preprocess_redcap.log"
+        config["output_path"] + "/logs/1_summarise_preprocess_redcap.log"
     shell:
         """
-        echo "> Number of sequences in raw UK fasta: $(cat {input.raw_fasta} | grep ">" | wc -l)\\n" &> {log}
+        cat {input.metadata_consensus_and_date_filter} &> {log}
+        echo "> Number of records after deduplicating based on gisaid name: $(cat {input.deduplicated_metadata_by_gisaid} | tail -n +2 | wc -l)\\n" &>> {log}
+        echo "> Number of sequences in redcap fasta: $(cat {input.raw_fasta} | grep ">" | wc -l)\\n" &>> {log}
+        echo "> Number of sequences after filtering by length: $(cat {input.low_length_fasta_filter} | grep ">" | wc -l)\\n" &>> {log}
+        echo "> Number of sequences after filtering by coverage: $(cat {input.low_covg_fasta_filter} | grep ">" | wc -l)" &>> {log}
 
-        echo "> Number of sequences after mapping: $(cat {input.removed_low_covg_fasta} | grep ">" | wc -l)\\n" &>> {log}
-        echo "> Number of sequences after removing those in omissions file: $(cat {input.removed_omitted_fasta} | grep ">" | wc -l)\\n" &>> {log}
-
-        echo ">\\n" >> {log}
-
+        echo '{{"text":"' > {params.json_path}/1_data.json
+        echo "*Step 1: {params.date} Redcap preprocessing complete*\\n" >> {params.json_path}/1_data.json
+        cat {log} >> {params.json_path}/1_data.json
+        echo '"}}' >> {params.json_path}/1_data.json
+        curl -X POST -H "Content-type: application/json" -d @{params.json_path}/1_data.json $(cat {input.webhook} | xargs)
         """
