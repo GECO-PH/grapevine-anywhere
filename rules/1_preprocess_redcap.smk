@@ -6,18 +6,23 @@ rule get_redcap_metadata:
     input:
         redcap_db = config["redcap_access"]
     params:
-        script = os.path.join(workflow.current_basedir, "../utilities/get_redcap_metadata.py")
+        script = os.path.join(workflow.current_basedir, "../utilities/get_redcap_metadata.py"),
+        dag_dir = config["output_path"] + "/1/redcap_records_missing_data_by_dag/"
     output:
         metadata = config["output_path"] + "/1/redcap_metadata.csv",
         summary = config["output_path"] + "/1/get_redcap_metadata_summary.txt",
         no_consensus_table = config["output_path"] + "/1/redcap_records_without_consensus.csv",
-        no_dates_table = config["output_path"] + "/1/redcap_records_without_dates.csv"
+        no_dates_table = config["output_path"] + "/1/redcap_records_without_dates.csv",
+        dag_summary = config["output_path"] + "/1/redcap_dag_summary.txt"
     log:
         config["output_path"] + "/logs/1_get_redcap_metadata.log"
     shell:
         """
+        mkdir -p {params.dag_dir}
+
         python {params.script} {input.redcap_db} {output.metadata} \
-               {output.summary} {output.no_consensus_table} {output.no_dates_table} &> {log}
+               {output.summary} {output.no_consensus_table} {output.no_dates_table} \
+               {output.dag_summary} {params.dag_dir} &> {log}
         """
 
 
@@ -956,6 +961,7 @@ rule summarise_preprocess_redcap:
     input:
         webhook = config["webhook"],
         metadata_consensus_and_date_filter = rules.get_redcap_metadata.output.summary,
+        dag_summary = rules.get_redcap_metadata.output.dag_summary,
         deduplicated_metadata_by_gisaid = rules.deduplicate_gisaid.output.metadata,
         raw_fasta = rules.format_redcap_fasta_header_and_strain.output.fasta,
         #deduplicated_fasta_by_covid = rules.uk_remove_duplicates_COGID_by_gaps.output.fasta,
@@ -978,15 +984,22 @@ rule summarise_preprocess_redcap:
         config["output_path"] + "/logs/1_summarise_preprocess_redcap.log"
     shell:
         """
+        #creating log file
         cat {input.metadata_consensus_and_date_filter} &> {log}
-        echo "> Number of records after deduplicating based on gisaid name: $(cat {input.deduplicated_metadata_by_gisaid} | tail -n +2 | wc -l)\\n" &>> {log}
-        echo "> Number of sequences in redcap fasta: $(cat {input.raw_fasta} | grep ">" | wc -l)\\n" &>> {log}
-        echo "> Number of sequences after filtering by length: $(cat {input.low_length_fasta_filter} | grep ">" | wc -l)\\n" &>> {log}
-        echo "> Number of sequences after filtering by coverage: $(cat {input.low_covg_fasta_filter} | grep ">" | wc -l)" &>> {log}
+        echo "Number of records after deduplicating based on gisaid name: $(cat {input.deduplicated_metadata_by_gisaid} | tail -n +2 | wc -l)\\n" &>> {log}
+        echo "Number of sequences in redcap fasta: $(cat {input.raw_fasta} | grep ">" | wc -l)\\n" &>> {log}
+        echo "Number of sequences after filtering by length: $(cat {input.low_length_fasta_filter} | grep ">" | wc -l)\\n" &>> {log}
+        echo "Number of sequences after filtering by coverage: $(cat {input.low_covg_fasta_filter} | grep ">" | wc -l)" &>> {log}
 
-        echo '{{"text":"' > {params.json_path}/1_data.json
-        echo "*Step 1: {params.date} Redcap preprocessing complete*\\n" >> {params.json_path}/1_data.json
+        #creating json to fit log into
+        echo '{{ "attachments": [ {{ "color": "#d61c0f", "blocks": [ {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "*Redcap preprocessing complete*\n" }} }}, {{ "type": "divider" }}, {{ "type": "section", "text": {{ "type": "mrkdwn", "text": "' > {params.json_path}/1_data.json
         cat {log} >> {params.json_path}/1_data.json
-        echo '"}}' >> {params.json_path}/1_data.json
+        echo '" }} }} ] }} ] }}' >> {params.json_path}/1_data.json
         curl -X POST -H "Content-type: application/json" -d @{params.json_path}/1_data.json $(cat {input.webhook} | xargs)
+
+        #creating json to fit dag summary into
+        echo '{{ "attachments": [ {{ "color": "#d61c0f", "blocks": [ {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "*Redcap Records SNL Summary*\\n" }} }}, {{ "type": "divider" }}, {{ "type": "section", "text": {{ "type": "mrkdwn", "text": "```' > {params.json_path}/1_dag_summary.json
+        cat {input.dag_summary} >> {params.json_path}/1_dag_summary.json
+        echo '```"}} }} ] }} ] }}' >> {params.json_path}/1_dag_summary.json
+        curl -X POST -H "Content-type: application/json" -d @{params.json_path}/1_dag_summary.json $(cat {input.webhook} | xargs)
         """
