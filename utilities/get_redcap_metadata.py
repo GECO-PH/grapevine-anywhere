@@ -33,11 +33,14 @@ def get_redcap_metadata(url, key, outpath, summary, consensus, dates, dag_table,
 
     #create dataframe for splitting counts by data access group
     dag_df = pd.DataFrame(columns=['Total Records', 'Passing Records', 'Records Missing Data'], index=(proj_df['redcap_data_access_group'].unique()), dtype=object)
-    for dag in dag_df.index:
+    for dag in dag_df.index: #need to do this before nan is replaced with 'nan'
         missing_data_by_dag[dag] = []   #use dags as keys in dictionary
-    dag_df = dag_df.reindex(index=dag_df.index.dropna()) #in case of nans in dag column
+    dag_df = dag_df.reindex(index=dag_df.index.fillna(value='No DAG')) #replaces nan with a string called No Dag, if there are nans
     dag_totals = []
     for dag in dag_df.index:
+        if dag == 'No DAG': #using other indexing method wouldn't work unless nans in df were changed to strings, so this block is easier
+            dag_totals.append(proj_df['redcap_data_access_group'].isna().sum())
+            continue
         dag_totals.append(len(proj_df.loc[(proj_df['redcap_repeat_instrument'] == 'Case') & (proj_df['redcap_data_access_group'] == dag),]))
     dag_df['Total Records'] = dag_totals
 
