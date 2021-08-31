@@ -979,7 +979,9 @@ rule summarise_preprocess_redcap:
     params:
         #grapevine_webhook = config["grapevine_webhook"],
         json_path = config["json_path"],
-        date=config["date"]
+        date = config["date"],
+        min_length = config["min_length"],
+        min_covg = config["min_covg"]
     log:
         config["output_path"] + "/logs/1_summarise_preprocess_redcap.log"
     shell:
@@ -988,8 +990,8 @@ rule summarise_preprocess_redcap:
         cat {input.metadata_consensus_and_date_filter} &> {log}
         echo "Number of records after deduplicating based on gisaid name: $(cat {input.deduplicated_metadata_by_gisaid} | tail -n +2 | wc -l)\\n" &>> {log}
         echo "Number of sequences in redcap fasta: $(cat {input.raw_fasta} | grep ">" | wc -l)\\n" &>> {log}
-        echo "Number of sequences after filtering by length: $(cat {input.low_length_fasta_filter} | grep ">" | wc -l)\\n" &>> {log}
-        echo "Number of sequences after filtering by coverage: $(cat {input.low_covg_fasta_filter} | grep ">" | wc -l)" &>> {log}
+        echo "Number of sequences after filtering by length (threshold: {params.min_length}bp) : $(cat {input.low_length_fasta_filter} | grep ">" | wc -l)\\n" &>> {log}
+        echo "Number of sequences after filtering by coverage (threshold: {params.min_covg}%) : $(cat {input.low_covg_fasta_filter} | grep ">" | wc -l)" &>> {log}
 
         #creating json to fit log into
         echo '{{ "attachments": [ {{ "color": "#d61c0f", "blocks": [ {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "*Redcap preprocessing complete*\n" }} }}, {{ "type": "divider" }}, {{ "type": "section", "text": {{ "type": "mrkdwn", "text": "' > {params.json_path}/1_data.json
@@ -1000,6 +1002,6 @@ rule summarise_preprocess_redcap:
         #creating json to fit dag summary into
         echo '{{ "attachments": [ {{ "color": "#d61c0f", "blocks": [ {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "*Redcap Records SNL Summary*\\n" }} }}, {{ "type": "divider" }}, {{ "type": "section", "text": {{ "type": "mrkdwn", "text": "```' > {params.json_path}/1_dag_summary.json
         cat {input.dag_summary} >> {params.json_path}/1_dag_summary.json
-        echo '```"}} }} ] }} ] }}' >> {params.json_path}/1_dag_summary.json
+        echo '```"}} }}, {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "_Note that this table is only intended as feedback to help SNLs track REDcap records with missing information required for the Grapevine pipeline - quality control is not a contest!_" }} }} ] }} ] }}' >> {params.json_path}/1_dag_summary.json
         curl -X POST -H "Content-type: application/json" -d @{params.json_path}/1_dag_summary.json $(cat {input.webhook} | xargs)
         """
