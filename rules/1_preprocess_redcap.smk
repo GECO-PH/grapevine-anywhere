@@ -978,10 +978,12 @@ rule summarise_preprocess_redcap:
         variants = rules.redcap_get_variants.output.variants
     params:
         #grapevine_webhook = config["grapevine_webhook"],
-        json_path = config["json_path"],
         date = config["date"],
         min_length = config["min_length"],
         min_covg = config["min_covg"]
+    output:
+        sequence_filter_json = config["json_path"] + "/1_seqs_filtered_by_step.json",
+        dag_summary_json = config["json_path"] + "/1_dag_summary.json"
     log:
         config["output_path"] + "/logs/1_summarise_preprocess_redcap.log"
     shell:
@@ -994,14 +996,14 @@ rule summarise_preprocess_redcap:
         echo "Number of sequences after filtering by coverage (threshold: {params.min_covg}%) : $(cat {input.low_covg_fasta_filter} | grep ">" | wc -l)" &>> {log}
 
         #creating json to fit log into
-        echo '{{ "attachments": [ {{ "color": "#d61c0f", "blocks": [ {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "*Redcap preprocessing complete*\\n{params.date}" }} }}, {{ "type": "divider" }}, {{ "type": "section", "text": {{ "type": "mrkdwn", "text": "' > {params.json_path}/1_data.json
-        cat {log} >> {params.json_path}/1_data.json
-        echo '" }} }} ] }} ] }}' >> {params.json_path}/1_data.json
-        curl -X POST -H "Content-type: application/json" -d @{params.json_path}/1_data.json $(cat {input.webhook} | xargs)
+        echo '{{ "attachments": [ {{ "color": "#d61c0f", "blocks": [ {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "*Redcap preprocessing complete*\\n{params.date}" }} }}, {{ "type": "divider" }}, {{ "type": "section", "text": {{ "type": "mrkdwn", "text": "' > {output.sequence_filter_json}
+        cat {log} >> {output.sequence_filter_json}
+        echo '" }} }} ] }} ] }}' >> {output.sequence_filter_json}
+        curl -X POST -H "Content-type: application/json" -d @{output.sequence_filter_json} $(cat {input.webhook} | xargs)
 
         #creating json to fit dag summary into
-        echo '{{ "attachments": [ {{ "color": "#d61c0f", "blocks": [ {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "*Redcap Records SNL Summary*\\n{params.date}" }} }}, {{ "type": "divider" }}, {{ "type": "section", "text": {{ "type": "mrkdwn", "text": "```' > {params.json_path}/1_dag_summary.json
-        cat {input.dag_summary} >> {params.json_path}/1_dag_summary.json
-        echo '```"}} }}, {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "_Note that this table is only intended as feedback to help SNLs track REDcap records with missing information required for the Grapevine pipeline - quality control is not a contest!_" }} }} ] }} ] }}' >> {params.json_path}/1_dag_summary.json
-        curl -X POST -H "Content-type: application/json" -d @{params.json_path}/1_dag_summary.json $(cat {input.webhook} | xargs)
+        echo '{{ "attachments": [ {{ "color": "#d61c0f", "blocks": [ {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "*Redcap Records SNL Summary*\\n{params.date}" }} }}, {{ "type": "divider" }}, {{ "type": "section", "text": {{ "type": "mrkdwn", "text": "```' > {output.dag_summary_json}
+        cat {input.dag_summary} >> {output.dag_summary_json}
+        echo '```"}} }}, {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "_Note that this table is only intended as feedback to help SNLs track REDcap records with missing information required for the Grapevine pipeline - quality control is not a contest!_" }} }} ] }} ] }}' >> {output.dag_summary_json}
+        curl -X POST -H "Content-type: application/json" -d @{output.dag_summary_json} $(cat {input.webhook} | xargs)
         """
