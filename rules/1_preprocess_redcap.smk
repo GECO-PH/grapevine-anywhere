@@ -994,13 +994,13 @@ rule summarise_preprocess_redcap:
         echo "Number of sequences after filtering by coverage (threshold: {params.min_covg}%) : $(cat {input.low_covg_fasta_filter} | grep ">" | wc -l)" &>> {log}
 
         #creating json to fit log into
-        echo '{{ "attachments": [ {{ "color": "#d61c0f", "blocks": [ {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "*Redcap preprocessing complete*\n" }} }}, {{ "type": "divider" }}, {{ "type": "section", "text": {{ "type": "mrkdwn", "text": "' > {params.json_path}/1_data.json
+        echo '{{ "attachments": [ {{ "color": "#d61c0f", "blocks": [ {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "*Redcap preprocessing complete*\\n{params.date}" }} }}, {{ "type": "divider" }}, {{ "type": "section", "text": {{ "type": "mrkdwn", "text": "' > {params.json_path}/1_data.json
         cat {log} >> {params.json_path}/1_data.json
         echo '" }} }} ] }} ] }}' >> {params.json_path}/1_data.json
         curl -X POST -H "Content-type: application/json" -d @{params.json_path}/1_data.json $(cat {input.webhook} | xargs)
 
         #creating json to fit dag summary into
-        echo '{{ "attachments": [ {{ "color": "#d61c0f", "blocks": [ {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "*Redcap Records SNL Summary*\\n" }} }}, {{ "type": "divider" }}, {{ "type": "section", "text": {{ "type": "mrkdwn", "text": "```' > {params.json_path}/1_dag_summary.json
+        echo '{{ "attachments": [ {{ "color": "#d61c0f", "blocks": [ {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "*Redcap Records SNL Summary*\\n{params.date}" }} }}, {{ "type": "divider" }}, {{ "type": "section", "text": {{ "type": "mrkdwn", "text": "```' > {params.json_path}/1_dag_summary.json
         cat {input.dag_summary} >> {params.json_path}/1_dag_summary.json
         echo '```"}} }}, {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "_Note that this table is only intended as feedback to help SNLs track REDcap records with missing information required for the Grapevine pipeline - quality control is not a contest!_" }} }} ] }} ] }}' >> {params.json_path}/1_dag_summary.json
         curl -X POST -H "Content-type: application/json" -d @{params.json_path}/1_dag_summary.json $(cat {input.webhook} | xargs)
