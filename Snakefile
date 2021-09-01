@@ -1,6 +1,9 @@
-configfile: workflow.current_basedir + "/config.yaml"
+##### Import #####
+import datetime
+import pytz
 
 ##### Configuration #####
+configfile: workflow.current_basedir + "/config.yaml"
 
 if config.get("output_path"):
     config["output_path"] = config["output_path"].rstrip('/')
@@ -13,9 +16,13 @@ if config.get("export_path"):
     config["export_path"] = config["export_path"].rstrip('/')
 config["export_path"] = os.path.abspath(config["export_path"])
 
+if config.get("json_path"):
+    config["json_path"] = config["json_path"].rstrip('/')
+config["json_path"] = os.path.abspath(config["json_path"])
+
 if not config.get("date"):
-    cwd = os.getcwd()
-    config["date"] = os.path.basename(cwd)[:10]
+    utc_now = pytz.utc.localize(datetime.datetime.utcnow())
+    config["date"] = utc_now.astimezone(pytz.timezone("Europe/London")).strftime('Date:%d-%m-%Y Time:%H:%M %Z')
 
 ##### Target rules #####
 
