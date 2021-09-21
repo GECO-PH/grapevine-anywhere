@@ -71,7 +71,9 @@ rule fasttree:
     params:
         lineage = "{lineage}"
     output:
-        tree = config["output_path"] + "/4/{lineage}/redcap_gisaid_{lineage}.unrooted.tree"
+        tree = config["output_path"] + "/4/{lineage}/redcap_gisaid_{lineage}.unrooted.tree",
+        previous_unrooted = config["previous_outputs"] + "/most_recent/{lineage}/most_recent_redcap_gisaid_{lineage}.unrooted.tree",
+        save_unrooted = config["previous_outputs"] + "/" + config["date"] + "/{lineage}/past_redcap_gisaid_{lineage}.unrooted.tree"
     log:
         config["output_path"] + "/logs/4_fasttree_{lineage}.log"
     resources: 
@@ -84,6 +86,9 @@ rule fasttree:
         export OMP_NUM_THREADS={threads}
 
         FastTreeMP -nosupport -nt {input.lineage_fasta} > {output.tree} 2> {log}
+
+        cp {output.tree} {output.previous_unrooted}
+        cp {output.tree} {output.save_unrooted}
         """
 
 
@@ -94,7 +99,9 @@ rule root_tree:
         lineage = "{lineage}",
         outgroup = lambda wildcards: lineage_to_outgroup_map[wildcards.lineage]
     output:
-        tree = config["output_path"] + "/4/{lineage}/redcap_gisaid_{lineage}.tree"
+        tree = config["output_path"] + "/4/{lineage}/redcap_gisaid_{lineage}.tree",
+        previous_rooted = config["previous_outputs"] + "/most_recent/{lineage}/most_recent_redcap_gisaid_{lineage}.tree",
+        save_rooted = config["previous_outputs"] + "/" + config["date"] + "/{lineage}/past_redcap_gisaid_{lineage}.tree"
     log:
         config["output_path"] + "/logs/4_root_tree_{lineage}.log"
     resources: 
@@ -108,6 +115,9 @@ rule root_tree:
           -i {input.tree} \
           -o {output.tree} \
           --outgroup hCoV-19/{params.outgroup} &>> {log}
+
+        cp {output.tree} {output.previous_rooted}
+        cp {output.tree} {output.save_rooted}
         """
 
 
@@ -357,7 +367,9 @@ rule merge_sibling_del_introduction:
     params:
         outdir = config["publish_path"] + "/REDCAP_GISAID"
     output:
-        tree = config["output_path"] + "/4/redcap_gisaid_grafted.annotated.del.del_labelled.del_merged.tree"
+        tree = config["output_path"] + "/4/redcap_gisaid_grafted.annotated.del.del_labelled.del_merged.tree",
+        previous_full = config["previous_outputs"] + "/most_recent/most_recent_redcap_gisaid_grafted.annotated.del.del_labelled.del_merged.tree",
+        save_full = config["previous_outputs"] + "/" + config["date"] + "/past_redcap_gisaid_grafted.annotated.del.del_labelled.del_merged.tree"        
     log:
         config["output_path"] + "/logs/4_merge_deltran_introductions.log"
     resources: 
@@ -372,6 +384,9 @@ rule merge_sibling_del_introduction:
           --output {output.tree} &> {log}
 
         mkdir -p {params.outdir}
+
+        cp {output.tree} {output.previous_full}
+        cp {output.tree} {output.save_full}
         """
 
 
