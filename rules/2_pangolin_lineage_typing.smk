@@ -1,9 +1,11 @@
-
 #previous_stage defined but never used, commenting out for now
 #only determines pangolin lineage for sequences which pass filters
 #AND
 #don't already have a pangolin lineage
 #but might we want to allow for lineage re-assignment?
+#lineage re-assignment would probably be done infrequently enough that
+#it could just be done by manually making the lineage column blank
+#when reading in the metadata from redcap
 rule redcap_normal_pangolin:
     input:
 #        previous_stage = config["output_path"] + "/logs/1_summarise_preprocess_uk.log",
@@ -27,7 +29,9 @@ rule redcap_filter_unassignable_lineage:
     input:
         lineages = rules.redcap_normal_pangolin.output.lineages
     output:
-        lineages = config["output_path"] + "/2/normal_pangolin/lineage_report_filtered.csv"
+        lineages = config["output_path"] + "/2/normal_pangolin/lineage_report_filtered.csv", 
+        previous_lineages = config["previous_outputs"] + "/most_recent/most_recent_redcap_lineages.csv",
+        save_lineages = config["previous_outputs"] + "/" + config["date"] + "/past_redcap_pango_lin_report_filtered.csv"
     log:
         config["output_path"] + "/logs/2_redcap_filter_unassignable_lineage.log"
     run:
@@ -44,6 +48,11 @@ rule redcap_filter_unassignable_lineage:
             log_out.write("The following sequences were not assigned a pangolin lineage: \n")
             [log_out.write(i + "\n") for i in df_unassigned['taxon']]
         log_out.close()
+
+        shell("""
+            cp {output.lineages} {output.previous_lineages}
+            cp {output.lineages} {output.save_lineages}
+            """)
 
 
 #index column should be strain
@@ -145,7 +154,7 @@ rule redcap_output_lineage_table:
         --filter-column strain country adm1 adm2 \
                         sample_date epi_week \
                         lineage {params.country_code}_lineage \
-        --where-column country=adm0 lineage=pango\
+        --where-column country=adm0 lineage=pango {params.country_code}_lineage={params.country_code}_cluster\
         --out-fasta {output.fasta} \
         --out-metadata {output.metadata} \
         --log-file {log} \
