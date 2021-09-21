@@ -56,6 +56,10 @@ rule deduplicate_gisaid:
         log_out.close()
 
 
+#                decode_contents = file_contents.decode()
+#                fasta_header = decode_contents.split(" ")[0].split('\r')[0]
+#                label_header = decode_contents.replace(fasta_header, fasta_header+ "_seq" + str(next(c)))
+#                reencode_contents = label_header.encode()
 rule get_redcap_fasta:
     input:
         redcap_db = config["redcap_access"],
@@ -78,8 +82,30 @@ rule get_redcap_fasta:
         with open(str(output.fasta), 'wb') as f:
             for i in proj_df.index:
                 file_contents, headers = proj.export_file((str(i)), 'consensus')
-                f.write(file_contents)        
+                f.write(file_contents)
         f.close()
+
+
+#appending 'seq[#]' to end of header is to prevent duplicate fasta headers until they are
+#properly formatted in format_redcap_fasta_header_and_strain rule 
+rule make_fasta_headers_unique:
+    input:
+        fasta = rules.get_redcap_fasta.output.fasta
+    output:
+        fasta = config["output_path"] + "/1/redcap_fasta.unique.fasta"
+    run:
+        from Bio import SeqIO
+        from itertools import count
+
+        fasta_in = SeqIO.parse(str(input.fasta), "fasta")
+
+        c = count()
+
+        with open(str(output.fasta), 'w') as fasta_out:
+            for record in fasta_in:
+                fasta_out.write('>' + record.id + '_seq' + str(next(c)) + '\n')
+                fasta_out.write(str(record.seq) + '\n')
+        fasta_out.close()
 
 
 #add sample date column based on collection date or received date
@@ -117,9 +143,11 @@ rule add_sample_date:
 rule add_strain:
     input:
         metadata = rules.add_sample_date.output.metadata,
-        fasta = rules.get_redcap_fasta.output.fasta
+        fasta = rules.make_fasta_headers_unique.output.fasta
     output:
         metadata = config["output_path"] + "/1/redcap_metadata.strain.csv"
+    log:
+        config["output_path"] + "/logs/1_add_strain.log"
     run:
         import pandas as pd
         from Bio import SeqIO
@@ -138,7 +166,7 @@ rule add_strain:
 
 rule format_redcap_fasta_header_and_strain:
     input:
-        fasta = rules.get_redcap_fasta.output.fasta,
+        fasta = rules.make_fasta_headers_unique.output.fasta,
         metadata = rules.add_strain.output.metadata
     params:
         country = config["country"].capitalize()
@@ -146,7 +174,7 @@ rule format_redcap_fasta_header_and_strain:
         fasta = config["output_path"] + "/1/redcap_formatted.fasta",
         metadata = config["output_path"] + "/1/redcap_metadata.strain.formatted.csv"
     log:
-        config["output_path"] + "/logs/1_redcap_strip_header_digits.log"
+        config["output_path"] + "/logs/1_format_redcap_fasta_header_and_strain.log"
     run:
         import pandas as pd
         from Bio import SeqIO
@@ -158,7 +186,7 @@ rule format_redcap_fasta_header_and_strain:
 
         with open(str(output.fasta), 'w') as fasta_out:
             for i,row in df.iterrows():
-                fasta_header = row["strain"].split(" ")[0] #split by whitespace since fasta headers may have them and then 'fasta_in[fasta_header]' will throw an KeyError
+                fasta_header = row["strain"]
                 gisaid_name = row["gisaid_name"]
                 year = row["sample_date"].split('-')[0]
                 new_header = "hCoV-19/" + params.country + "/" + gisaid_name + "/" + year
@@ -537,6 +565,7 @@ rule redcap_filter_by_length:
 
 
 #originally took rules.uk_unify_headers.output.fasta as input
+#asm20 used instead of asm5 as sequence divergence can now be between 10-20%
 rule redcap_minimap2_to_reference:
     input:
         fasta = rules.redcap_filter_by_length.output.fasta,
@@ -550,7 +579,12 @@ rule redcap_minimap2_to_reference:
         mem_per_cpu=2000
     shell:
         """
-        minimap2 -t {threads} -a -x asm5 {input.reference} {input.fasta} > {output.sam} 2> {log}
+        minimap2 \
+        -t {threads} \
+        -a -x asm20 \
+        {input.reference} \
+        {input.fasta} \
+        -o {output.sam} 2> {log}
         """
 
 
@@ -574,19 +608,9 @@ rule redcap_get_variants:
         """
 
 
-#        gofasta sam toMultiAlign \
-#        -t {threads} \
-#        -s {input.sam} \
-#        -o {output.fasta} \
-#        --trim \
-#        --trimstart {params.trim_start} \
-#        --trimend {params.trim_end} \
-#        --pad &> {log}
-#
-#        mv insertions.txt {params.insertions}
-#        mv deletions.txt {params.deletions}
-#        cp {params.insertions} {output.insertions}
-#        cp {params.deletions} {output.deletions}
+#It was suggested that gofasta command be used instead of sam_2_fasta
+#as this is what the current cog-uk pipeline is using
+#outputs commented out as it's not clear where they're supposed to be generated
 rule redcap_remove_insertions_and_trim_and_pad:
     input:
         sam = rules.redcap_minimap2_to_reference.output.sam,
@@ -594,24 +618,25 @@ rule redcap_remove_insertions_and_trim_and_pad:
     params:
         trim_start = config["trim_start"],
         trim_end = config["trim_end"],
-#        insertions = config["output_path"] + "/1/uk_insertions.txt",
-#        deletions = config["output_path"] + "/1/uk_deletions.txt"
+        insertions = config["output_path"] + "/1/uk_insertions.txt",
+        deletions = config["output_path"] + "/1/uk_deletions.txt"
     output:
         fasta = config["output_path"] + "/1/redcap_latest.unify_headers.epi_week.deduplicated.alignment.trimmed.fasta",
 #        insertions = config["export_path"] + "/metadata/uk_insertions.txt",
 #        deletions = config["export_path"] + "/metadata/uk_deletions.txt"
+    threads: 8
     log:
         config["output_path"] + "/logs/1_redcap_remove_insertions_and_trim_and_pad.log"
     shell:
         """
-        datafunk sam_2_fasta \
-          -s {input.sam} \
-          -r {input.reference} \
-          -o {output.fasta} \
-          -t [{params.trim_start}:{params.trim_end}] \
-          --pad \
-          --log-inserts \
-          --log-deletions &> {log}
+        gofasta sam toMultiAlign \
+        -t {threads} \
+        -s {input.sam} \
+        -o {output.fasta} \
+        --trim \
+        --trimstart {params.trim_start} \
+        --trimend {params.trim_end} \
+        --pad &> {log}
         """
 
 
@@ -655,6 +680,7 @@ rule redcap_filter_low_coverage_sequences:
 
 #will need to get omissions list
 #do we have or need one?
+#could probably remove this rule
 rule redcap_filter_omitted_sequences:
     input:
         fasta = rules.redcap_filter_low_coverage_sequences.output.fasta,
@@ -813,7 +839,8 @@ Instead of new sequences (as determined by a date stamp), it might be more robus
 to extract sequences for lineage typing that don't currently have an associated
 lineage designation in the metadata file.
 """
-#our pipeline isn't currently using previous metadata or global lineages
+#we don't need previous metadata since redcap data is always up to date
+#not sure what global lineages is
 #skip for now
 #rule uk_add_previous_lineages_to_metadata:
 #    input:
@@ -882,6 +909,7 @@ rule redcap_extract_lineageless:
 #dup logs commented out for now
 #previously took rules.uk_add_previous_lineages_to_metadata.output.metadata as input
 #not doing anything at the moment since deduplicating rules aren't in use
+#could probably remove this rule
 rule redcap_add_dups_to_lineageless:
     input:
         master_fasta = rules.redcap_filter_omitted_sequences.output.fasta,
@@ -979,6 +1007,7 @@ rule summarise_preprocess_redcap:
     params:
         #grapevine_webhook = config["grapevine_webhook"],
         date = config["date"],
+        time = config["time"],
         min_length = config["min_length"],
         min_covg = config["min_covg"]
     output:
@@ -996,13 +1025,13 @@ rule summarise_preprocess_redcap:
         echo "Number of sequences after filtering by coverage (threshold: {params.min_covg}%) : $(cat {input.low_covg_fasta_filter} | grep ">" | wc -l)" &>> {log}
 
         #creating json to fit log into
-        echo '{{ "attachments": [ {{ "color": "#d61c0f", "blocks": [ {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "*Redcap preprocessing complete*\\n{params.date}" }} }}, {{ "type": "divider" }}, {{ "type": "section", "text": {{ "type": "mrkdwn", "text": "' > {output.sequence_filter_json}
+        echo '{{ "attachments": [ {{ "color": "#d61c0f", "blocks": [ {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "*Redcap preprocessing complete*\\nDate:{params.date} Time:{params.time}" }} }}, {{ "type": "divider" }}, {{ "type": "section", "text": {{ "type": "mrkdwn", "text": "' > {output.sequence_filter_json}
         cat {log} >> {output.sequence_filter_json}
         echo '" }} }} ] }} ] }}' >> {output.sequence_filter_json}
         curl -X POST -H "Content-type: application/json" -d @{output.sequence_filter_json} $(cat {input.webhook} | xargs)
 
         #creating json to fit dag summary into
-        echo '{{ "attachments": [ {{ "color": "#d61c0f", "blocks": [ {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "*Redcap Records SNL Summary*\\n{params.date}" }} }}, {{ "type": "divider" }}, {{ "type": "section", "text": {{ "type": "mrkdwn", "text": "```' > {output.dag_summary_json}
+        echo '{{ "attachments": [ {{ "color": "#d61c0f", "blocks": [ {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "*Redcap Records SNL Summary*\\nDate:{params.date} Time:{params.time}" }} }}, {{ "type": "divider" }}, {{ "type": "section", "text": {{ "type": "mrkdwn", "text": "```' > {output.dag_summary_json}
         cat {input.dag_summary} >> {output.dag_summary_json}
         echo '```"}} }}, {{ "type" : "section", "text" : {{ "type" : "mrkdwn", "text" : "_Note that this table is only intended as feedback to help SNLs track REDcap records with missing information required for the Grapevine pipeline - quality control is not a contest!_" }} }} ] }} ] }}' >> {output.dag_summary_json}
         curl -X POST -H "Content-type: application/json" -d @{output.dag_summary_json} $(cat {input.webhook} | xargs)
