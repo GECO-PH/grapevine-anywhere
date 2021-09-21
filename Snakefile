@@ -22,7 +22,11 @@ config["json_path"] = os.path.abspath(config["json_path"])
 
 if not config.get("date"):
     utc_now = pytz.utc.localize(datetime.datetime.utcnow())
-    config["date"] = utc_now.astimezone(pytz.timezone("Europe/London")).strftime('Date:%d-%m-%Y Time:%H:%M %Z')
+    config["date"] = utc_now.astimezone(pytz.timezone("Europe/London")).strftime('%d-%m-%Y')
+
+if not config.get("time"):
+    utc_now = pytz.utc.localize(datetime.datetime.utcnow())
+    config["time"] = utc_now.astimezone(pytz.timezone("Europe/London")).strftime('%H:%M %Z')
 
 ##### Target rules #####
 
