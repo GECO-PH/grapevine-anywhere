@@ -85,15 +85,6 @@ phylopipe_webhook:
 ##### report latex template #####
 latex_template: resources/resources/latex_template.latex
 
-#### Keys added for making DAG/rulegraph ####
-latest_gisaid_json: data/gisaid_data/ncov_asia.json
-previous_omitted_file: dummy_files/previous_omitted_file.txt
-previous_gisaid_lineages: dummy_files/prev_gisaid_lineages.txt
-latest_uk_accessions: dummy_files/latest_uk_accessions.txt
-GISAID_variants: dummy_files/gisaid_variants.txt
-MINK_variants: dummy_files/mink_variants.txt
-phylopipe_token: dummy_files/phylopipe_token.txt
-
 #### Keys for Testing Rule 2 ####
 lineageless: /0/gisaid.all.lineageless.fasta
 rule_2_meta: /0/gisaid.all.csv
