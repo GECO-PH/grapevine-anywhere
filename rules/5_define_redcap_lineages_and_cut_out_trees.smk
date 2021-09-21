@@ -15,14 +15,19 @@ rule merge_and_create_new_redcap_lineages:
         country = config["country"],
         country_code = config["country_code"]
     output:
-        config["output_path"] + "/5/updated_traits.csv"
+        traits = config["output_path"] + "/5/updated_traits.csv",
+        previous_traits = config["previous_outputs"] + "/most_recent/most_recent_updated_traits.csv",
+        save_traits = config["previous_outputs"] + "/" + config["date"] + "/past_updated_traits.csv"
     log:
         config["output_path"] + "/logs/5_merge_and_create_new_redcap_lineages.log"
     resources: 
         mem_per_cpu=10000
     shell:
         """
-        python {params.script} {input} {params.country} {params.country_code} {output} &> {log}
+        python {params.script} {input} {params.country} {params.country_code} {output.traits} &> {log}
+
+        cp {output.traits} {output.previous_traits}
+        cp {output.traits} {output.save_traits}
         """
 
 #issue with r function 'normalizePath'
@@ -87,7 +92,7 @@ rule update_lineage_metadata:
         metadata = config["output_path"] + "/3/redcap_gisaid.lineages.expanded.csv",
 #        metadata = rules.five_update_global_lineage_metadata.output.metadata,
         traits = rules.output_annotations.output.traits,
-        updated_lineages = rules.merge_and_create_new_redcap_lineages.output
+        updated_lineages = rules.merge_and_create_new_redcap_lineages.output.traits
     params:
         country_code = config["country_code"]
     output:
@@ -110,7 +115,7 @@ rule update_lineage_metadata:
           --in-data {input.updated_lineages} \
           --index-column strain \
           --join-on taxon \
-          --new-columns {params.country_code}_lineage microreact_lineage \
+          --new-columns {params.country_code}_cluster microreact_lineage \
           --out-metadata {output.all_metadata} &> {log}
         """
 
@@ -170,7 +175,7 @@ rule step_5_annotate_tree:
 #          I=`echo ${{LINE}} | cut -d"K" -f2`
 rule get_redcap_lineage_samples:
     input:
-        metadata = rules.merge_and_create_new_redcap_lineages.output
+        metadata = rules.merge_and_create_new_redcap_lineages.output.traits
     output:
         outdir = directory(config["output_path"] + "/5/samples/")
     log:
@@ -313,7 +318,9 @@ rule combine_phylotypes_csv:
     input:
         csvdir = config["output_path"] + "/5/phylotype_csvs/"
     output:
-        phylotype_csv = config["output_path"] + "/5/redcap_phylotypes.csv"
+        phylotype_csv = config["output_path"] + "/5/redcap_phylotypes.csv",
+        previous_phylotypes = config["previous_outputs"] + "/most_recent/most_recent_redcap_phylotypes.csv",
+        save_phylotypes = config["previous_outputs"] + "/" + config["date"] + "/past_redcap_phylotypes.csv"
     log:
         config["output_path"] + "/logs/5_traits_combine_phylotype_csv.log"
     resources: 
@@ -325,26 +332,25 @@ rule combine_phylotypes_csv:
 
         mypath = str(input.csvdir)
 
-        #print(mypath)
-
         files = glob.glob(os.path.join(mypath, "*csv"))
-        
-        #print(files)
 
         dfs = [pd.read_csv(x) for x in files]
-
-        #print(dfs)
 
         result = pd.concat(dfs)
         result.to_csv(output[0], index=False)
 
+        shell("""
+            cp {output.phylotype_csv} {output.previous_phylotypes}
+            cp {output.phylotype_csv} {output.save_phylotypes}
+            """)
 
-#adding country lineage column to metadata from rule 2
+
+#adding cluster to metadata from rule 2
 #for import to redcap
 rule add_country_lineage_to_redcap_metadata:
     input:
         metadata = rules.redcap_add_pangolin_lineages_to_metadata.output.metadata,
-        lineage = rules.merge_and_create_new_redcap_lineages.output
+        lineage = rules.merge_and_create_new_redcap_lineages.output.traits
     params:
         country_code = config["country_code"]
     output:
@@ -359,7 +365,6 @@ rule add_country_lineage_to_redcap_metadata:
           --index-column strain \
           --join-on taxon \
           --new-columns {params.country_code}_cluster \
-          --where-column {params.country_code}_cluster={params.country_code}_lineage\
           --out-metadata {output.metadata} &>> {log}
         """
 
