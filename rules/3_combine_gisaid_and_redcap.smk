@@ -176,7 +176,6 @@ rule redcap_output_hashed_lineage_table:
 #input was originally config["GISAID_background_fasta"] and
 #config["GISAID_background_metadata"].
 #not sure what is meant by 'background' data.
-#uk_lineage column doesn't exist in gisaid data
 rule gisaid_output_lineage_table:
     input:
         fasta = rules.gisaid_output_all_matched_metadata.output.fasta,
