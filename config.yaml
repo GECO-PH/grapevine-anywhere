@@ -7,9 +7,12 @@ GISAID_background_fasta: dummy_files/gisaid_background_fasta.fasta
 GISAID_background_metadata: dummy_files/gisaid_background_metadata.txt
 GISAID_background_expanded_metadata: dummy_files/gisaid_background_expanded_metadata.txt
 GISAID_background_expanded_fasta: dummy_files/gisaid_background_expanded_fasta.fasta
+
+gisaid_fasta: data/gisaid_data/ncov_asia.fasta
+gisaid_meta: data/gisaid_data/ncov_asia.tsv
 gisaid_mask_file: resources/resources/mask.txt
 
-previous_uk_metadata: dummy_files/previous_uk_metadata.txt # NEEDED IN STEP 1
+previous_redcap_metadata:
 
 latest_uk_fasta: dummy_files/latest_uk_fasta.fasta
 latest_uk_metadata: dummy_files/latest_uk_metadata.txt
@@ -21,8 +24,13 @@ redcap_mask_file: resources/resources/mask.txt
 redcap_access: redcap_api_url_and_key.txt
 
 output_path: output
+previous_outputs: previous_outputs
 publish_path: publish
 export_path: publish/phylogenetics
+
+##### Previous Outputs #####
+previous_gisaid_lineages: previous_outputs/most_recent/previous_gisaid_lineages.csv
+previous_redcap_lineages: previous_outputs/most_recent/previous_redcap_lineages.csv
 
 ##### global lineage definitions #####
 global_lineages: dummy_files/global_lineages.txt
@@ -58,8 +66,9 @@ outgroups_fasta: resources/resources/gisaid_outgroups/gisaid_outgroups.sequences
 guide_tree: resources/resources/graft_guide.newick
 test_guide_tree: resources/resources/test_guide_tree/test_guide_tree.tree
 
-##### Date #####
+##### Date/Time #####
 date:
+time:
 time_window: 99999
 
 ##### Working directory #####
@@ -76,7 +85,6 @@ phylopipe_webhook:
 ##### report latex template #####
 latex_template: resources/resources/latex_template.latex
 
-
 #### Keys added for making DAG/rulegraph ####
 latest_gisaid_json: data/gisaid_data/ncov_asia.json
 previous_omitted_file: dummy_files/previous_omitted_file.txt
@@ -85,11 +93,6 @@ latest_uk_accessions: dummy_files/latest_uk_accessions.txt
 GISAID_variants: dummy_files/gisaid_variants.txt
 MINK_variants: dummy_files/mink_variants.txt
 phylopipe_token: dummy_files/phylopipe_token.txt
-
-
-#### Keys added for adapting grapevine for GECO project ####
-gisaid_fasta: data/gisaid_data/ncov_asia.fasta
-gisaid_meta: data/gisaid_data/ncov_asia.tsv
 
 #### Keys for Testing Rule 2 ####
 lineageless: /0/gisaid.all.lineageless.fasta
