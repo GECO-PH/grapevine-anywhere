@@ -1,90 +1,26 @@
-#rule gisaid_process_json:
-#    input:
-#        json = config["latest_gisaid_json"],
-#        omitted = config["previous_omitted_file"],
-#    output:
-#        fasta = config["output_path"] + "/0/gisaid.fasta",
-#        metadata = config["output_path"] + "/0/gisaid.csv"
-#    log:
-#        config["output_path"] + "/logs/0_gisaid_process_json.log"
-#    resources: mem_per_cpu=20000
-#    shell:
-#        """
-#        datafunk process_gisaid_data \
-#          --input-json {input.json} \
-#          --input-metadata False \
-#          --exclude-file {input.omitted} \
-#          --output-fasta {output.fasta} \
-#          --output-metadata {output.metadata} \
-#          --exclude-undated &> {log}
-#        """
-
-
-
-#gisaid_unify_headers standardises sequence names in both fasta and metadata files
-#this isn't necessary for current gisaid data
-#rule gisaid_unify_headers:
-#    input:
-#        fasta = config["gisaid_fasta"],
-#        metadata = config["gisaid_meta"],
-#        #fasta = rules.gisaid_process_json.output.fasta,
-#        #metadata = rules.gisaid_process_json.output.metadata,
-#    output:
-#        fasta = config["output_path"] + "/0/gisaid.UH.fasta",
-#        metadata = config["output_path"] + "/0/gisaid.UH.tsv",
-#    log:
-#        config["output_path"] + "/logs/0_gisaid_unify_headers.log"
-#    run:
-#        import pandas as pd
-#        from Bio import SeqIO
-#
-#        fasta_in = SeqIO.index(str(input.fasta), "fasta")
-#        df = pd.read_csv(input.metadata, sep='\t')
-#
-#        sequence_name = []
-#
-#        #start writing to output fasta
-#
-#        with open(str(output.fasta), 'w') as fasta_out:
-#            for i,row in df.iterrows():
-#                edin_header = row["edin_header"]
-#                new_header = edin_header.split("|")[0]
-#                sequence_name.append(new_header)
-#
-#                try:
-#                    record = fasta_in[edin_header]
-#                    fasta_out.write(">" + new_header + "\n")
-#                    fasta_out.write(str(record.seq) + "\n")
-#                except:
-#                    continue
-#
-#        df['sequence_name'] = sequence_name
-#        df.to_csv(output.metadata, index=False, sep = ",")
-
-
-#in-data and in-metadata are assumed csv apparently
-#index-column in metadata is shared by data
-#join-on refers to column in data shared by metadata
-#new-columns are columns in in-data
-#rule not really necessary at the moment
-#rule gisaid_add_previous_lineages:
-#    input:
-#        metadata = rules.gisaid_unify_headers.output.metadata,
-#        previous_lineages = config["previous_gisaid_lineages"],
-#    output:
-#        metadata = config["output_path"] + "/0/gisaid.lineages.csv"
-#    log:
-#        config["output_path"] + "/logs/0_gisaid_add_previous_lineages.log"
-#    shell:
-#        """
-#        fastafunk add_columns \
-#          --in-metadata {input.metadata} \
-#          --in-data {input.previous_lineages} \
-#          --index-column sequence_name \
-#          --join-on sequence_name \
-#          --new-columns lineage lineage_support lineages_version \
-#          --out-metadata {output.metadata} &> {log}
-#        """
+#adds pangolin info from previous run and adds to current
+#this means blank pangolin assignments in input metadata
+#don't have to be reassigned every run
+#assumes previous gisaid lineages exists
+rule gisaid_add_previous_lineages:
+    input:
+        metadata = config["gisaid_meta"],
+        previous_lineages = config["previous_gisaid_lineages"]
+    output:
+        metadata = config["output_path"] + "/0/gisaid.lineages.csv"
+    log:
+        config["output_path"] + "/logs/0_gisaid_add_previous_lineages.log"
+    shell:
+        """
+        fastafunk add_columns \
+          --in-metadata {input.metadata} \
+          --in-data {input.previous_lineages} \
+          --index-column strain \
+          --join-on taxon \
+          --new-columns pango_lineage lineage_support lineages_version \
+          --where-column pango_lineage=lineage lineage_support=ambiguity_score lineages_version=pangoLEARN_version \
+          --out-metadata {output.metadata} &> {log}
+        """
 
 
 #reads metadata and fasta for lineage outgroups
@@ -92,7 +28,7 @@
 #will be removed in later rule if duplicate exists
 rule add_gisaid_outgroups:
     input:
-        metadata = config["gisaid_meta"],
+        metadata = rules.gisaid_add_previous_lineages.output.metadata,
         fasta = config["gisaid_fasta"],
         outgroups_metadata = config["outgroups_metadata"],
         outgroups_fasta = config["outgroups_fasta"]
@@ -153,18 +89,13 @@ rule add_days_and_weeks_since_epi:
         df.to_csv(output.metadata, index=False, sep = ",")
 
 
-#groups together by sequence name and then takes one from each group,
-#removing duplicates
-#is it possible for fasta sequences with identical names to have non-identical sequences?
-#note that 'sequence_name' column is now 'strain'
+#groups together by sequence name and then takes one from each group, removing duplicates
 #of duplicates, most recent sequence is kept, given by 'select-by-min'
-#when deduplicating redcap by date, the oldest is kept...
+#in redcap processing, duplicate fasta headers aren't removed, but are made unique
 rule gisaid_remove_duplicates:
     input:
         fasta = rules.add_gisaid_outgroups.output.fasta,
-        metadata = rules.add_days_and_weeks_since_epi.output.metadata,
-#        fasta = rules.gisaid_unify_headers.output.fasta,
-#        metadata = rules.gisaid_add_previous_lineages.output.metadata
+        metadata = rules.add_days_and_weeks_since_epi.output.metadata
     output:
         fasta = config["output_path"] + "/0/gisaid.UH.RD.fasta",
         metadata = config["output_path"] + "/0/gisaid.UH.RD.csv"
@@ -183,26 +114,6 @@ rule gisaid_remove_duplicates:
           --out-metadata {output.metadata} \
           --select-by-min-column 'epi_week' &> {log}
         """
-
-
-#counts number of records by grouping on 'country' column
-#was previously 'edin_admin_0' column
-#not really a priority
-#rule gisaid_counts_by_country:
-#    input:
-#        metadata = rules.gisaid_remove_duplicates.output.metadata
-#    output:
-#        counts = config["output_path"] + "/0/gisaid_counts_by_country.csv",
-#    log:
-#        config["output_path"] + "/logs/0_gisaid_counts_by_country.log"
-#    resources: mem_per_cpu=20000
-#    shell:
-#        """
-#        fastafunk count \
-#          --in-metadata {input.metadata} \
-#          --group-column country \
-#          --log-file {output.counts} &> {log}
-#        """
 
 
 #filters fasta seqs by length
@@ -238,7 +149,12 @@ rule gisaid_minimap2_to_reference:
     threads: 8
     shell:
         """
-        minimap2 -t8 -a -x asm5 {input.reference} {input.fasta} -o {output} &> {log}
+        minimap2 \
+        -t {threads} \
+        -a -x asm20 \
+        {input.reference} \
+        {input.fasta} \
+        -o {output} 2> {log}
         """
 
 
@@ -270,16 +186,13 @@ rule gisaid_get_variants:
         """
 
 
-#insertion and deletion params are found but don't appear to be used?
 rule gisaid_remove_insertions_and_pad:
     input:
         sam = rules.gisaid_minimap2_to_reference.output.sam,
         reference = config["reference_fasta"]
     params:
         trim_start = config["trim_start"],
-        trim_end = config["trim_end"],
-        insertions = config["output_path"] + "/0/gisaid_insertions.txt",
-        deletions = config["output_path"] + "/0/gisaid_deletions.txt"
+        trim_end = config["trim_end"]
     output:
         fasta = config["output_path"] + "/0/gisaid.RD.UH.filt1.mapped.fasta"
     threads: 8
@@ -287,7 +200,14 @@ rule gisaid_remove_insertions_and_pad:
         config["output_path"] + "/logs/0_gisaid_remove_insertions_and_pad.log"
     shell:
         """
-        gofasta sam toMultiAlign -t {threads} -s {input.sam} -o {output.fasta} --trim --trimstart {params.trim_start} --trimend {params.trim_end} --pad &> {log}
+        gofasta sam toMultiAlign \
+        -t {threads} \
+        -s {input.sam} \
+        -o {output.fasta} \
+        --trim \
+        --trimstart {params.trim_start} \
+        --trimend {params.trim_end} \
+        --pad &> {log}
         """
 
 
@@ -483,15 +403,22 @@ rule gisaid_normal_pangolin:
     resources: mem_per_cpu=20000
     shell:
         """
-        pangolin {input.fasta} --tempdir {params.tmpdir} --outdir {params.outdir} --verbose > {log} 2>&1
+        pangolin \
+        {input.fasta} \
+        --tempdir {params.tmpdir} \
+        --outdir {params.outdir} \
+        --verbose > {log} 2>&1
         """
 
 
+#remember that output.previous_lineages should match previous_gisaid_lineages in config
 rule gisaid_filter_unassignable_lineage:
     input:
         lineages = rules.gisaid_normal_pangolin.output.lineages
     output:
-        lineages = config["output_path"] + "/0/normal_pangolin/lineage_report_filtered.csv"
+        lineages = config["output_path"] + "/0/normal_pangolin/lineage_report_filtered.csv",
+        previous_lineages = config["previous_outputs"] + "/most_recent/most_recent_gisaid_lineages.csv",
+        save_lineages = config["previous_outputs"] + "/" + config["date"] + "/past_gisaid_pango_lin_report_filtered.csv"
     log:
         config["output_path"] + "/logs/0_gisaid_filter_unassignable_lineage.log"
     run:
@@ -508,6 +435,12 @@ rule gisaid_filter_unassignable_lineage:
             log_out.write("The following sequences were not assigned a pangolin lineage: \n")
             [log_out.write(i + "\n") for i in df_unassigned['taxon']]
         log_out.close()
+
+        shell("""
+            cp {output.lineages} {output.previous_lineages}
+            cp {output.lineages} {output.save_lineages}
+            """)
+            
 
 
 rule gisaid_add_pangolin_lineages_to_metadata:
@@ -526,7 +459,7 @@ rule gisaid_add_pangolin_lineages_to_metadata:
           --index-column strain \
           --join-on taxon \
           --new-columns pango_lineage lineage_support lineages_version \
-          --where-column pango_lineage=lineage lineage_support=probability lineages_version=pangoLEARN_version \
+          --where-column pango_lineage=lineage lineage_support=ambiguity_score lineages_version=pangoLEARN_version \
           --out-metadata {output.metadata} &> {log}
         """
 
@@ -641,7 +574,6 @@ rule gisaid_output_all_matched_metadata:
 
 
 #Would normally take fasta output from gisaid_filter_on_distance_to_WH04
-#filter columns are retained
 rule gisaid_output_global_matched_metadata:
     input:
         fasta = rules.gisaid_mask.output.fasta,
@@ -897,6 +829,7 @@ rule gisaid_get_collapsed_expanded_metadata:
         """
 
 
+#checks to see if any of the root lineages exist in the gisaid data
 rule check_root_pangolin_lineages:
     input:
         metadata = rules.gisaid_add_del_finder_result_to_metadata.output.metadata,
@@ -904,7 +837,7 @@ rule check_root_pangolin_lineages:
     output:
         metadata = config["output_path"] + "/0/root_pangolin_lineages.txt"
     log:
-        config["output_path"] + "/0/check_root_pangolin_lineages.log"
+        config["output_path"] + "/logs/check_root_pangolin_lineages.log"
     resources: mem_per_cpu=20000
     run:
         import pandas as pd
