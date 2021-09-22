@@ -3,24 +3,11 @@ country: philippines
 country_code: ph
 
 ##### Where is the data? #####
-GISAID_background_fasta: dummy_files/gisaid_background_fasta.fasta
-GISAID_background_metadata: dummy_files/gisaid_background_metadata.txt
-GISAID_background_expanded_metadata: dummy_files/gisaid_background_expanded_metadata.txt
-GISAID_background_expanded_fasta: dummy_files/gisaid_background_expanded_fasta.fasta
-
 gisaid_fasta: data/gisaid_data/ncov_asia.fasta
 gisaid_meta: data/gisaid_data/ncov_asia.tsv
 gisaid_mask_file: resources/resources/mask.txt
 
-previous_redcap_metadata:
-
-latest_uk_fasta: dummy_files/latest_uk_fasta.fasta
-latest_uk_metadata: dummy_files/latest_uk_metadata.txt
-
-redcap_omissions: dummy_files/uk_omissions.txt
-uk_updated_dates: dummy_files/uk_updated_dates.txt
 redcap_mask_file: resources/resources/mask.txt
-
 redcap_access: redcap_api_url_and_key.txt
 
 output_path: output
@@ -36,7 +23,7 @@ previous_redcap_lineages: previous_outputs/most_recent/previous_redcap_lineages.
 global_lineages: dummy_files/global_lineages.txt
 
 ##### Filter thresholds #####
-min_covg: 70
+min_covg: 93
 min_length: 29000
 
 ##### Mapping reference #####
@@ -84,8 +71,3 @@ phylopipe_webhook:
 
 ##### report latex template #####
 latex_template: resources/resources/latex_template.latex
-
-#### Keys for Testing Rule 2 ####
-lineageless: /0/gisaid.all.lineageless.fasta
-rule_2_meta: /0/gisaid.all.csv
-all_fasta: /0/gisaid.all.fasta
