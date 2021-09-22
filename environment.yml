@@ -1,4 +1,4 @@
-name: test_grapevine_anywhere
+name: grapevine_anywhere
 channels:
   - bioconda
   - conda-forge
