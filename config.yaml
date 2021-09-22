@@ -3,12 +3,12 @@ country: philippines
 country_code: ph
 
 ##### Where is the data? #####
-gisaid_fasta: data/gisaid_data/ncov_asia.fasta
 gisaid_meta: data/gisaid_data/ncov_asia.tsv
+gisaid_fasta: data/gisaid_data/ncov_asia.fasta
 gisaid_mask_file: resources/resources/mask.txt
 
-redcap_mask_file: resources/resources/mask.txt
 redcap_access: redcap_api_url_and_key.txt
+redcap_mask_file: resources/resources/mask.txt
 
 output_path: output
 previous_outputs: previous_outputs
