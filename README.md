@@ -13,7 +13,8 @@ conda activate grapevine
 Note that, while conda can be used to create the environment, mamba is currently much faster.
 
 ##Configure
-##`Required config keys`
+
+### `Required config keys`
 The following are keys in the config.yaml file which require values for the pipeline to run:
 
 `country`
