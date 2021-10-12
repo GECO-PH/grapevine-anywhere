@@ -113,8 +113,8 @@ The following are keys in the config.yaml file which require values for the pipe
 
 `webhook`
 > *Path to file containing webhook URL. Used for sending summaries to slack.*
-> *The format of the file should be such that it only contains the URL, which should look like 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX'.*
-> *A good tutorial this up can be found here: https://api.slack.com/messaging/webhooks*
+> *The format of the file should be such that it only contains the URL, which should look like: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX.*
+> *A good tutorial for this can be found here: https://api.slack.com/messaging/webhooks*
 
 
 ## Pipeline
