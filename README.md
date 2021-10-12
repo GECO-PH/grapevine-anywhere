@@ -35,7 +35,7 @@ The following are keys in the config.yaml file which require values for the pipe
 `redcap_access`
 > *Path to file containing REDCap database API URL and a redcap API token for that database.*
 > *The format of the file should be such that it contains only the URL and token on a single line, separated by a comma.*
-> *E.g. https://geco.ritm-edc.net/redcap/api/,<TOKEN>*
+> *E.g. https://geco.ritm-edc.net/redcap/api/,TOKEN*
 
 `redcap_mask_file`
 > *Path to REDCap maskfile. Used to mask sites in REDCap fasta sequences.*
@@ -113,23 +113,27 @@ The following are keys in the config.yaml file which require values for the pipe
 
 `webhook`
 > *Path to file containing webhook URL. Used for sending summaries to slack.*
+> *The format of the file should be such that it only contains the URL, which should look like 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX'.*
+> *A good tutorial this up can be found here: https://api.slack.com/messaging/webhooks*
 
 
-## The pipeline - in brief
+## Pipeline
 
-0) Process latest GISAID data 
+### `Overview`
 
-1) Import CoG-UK consensus fasta file
+0) Process GISAID data.
 
-2) Clean and filter
+1) Process REDCap data.
 
-3) Align to reference
+2) Clean and filter.
 
-4) Lineage type using PANGOLIN
+3) Align to reference.
 
-5) Merge with GISAID alignment
+4) Lineage type using PANGOLIN.
 
-6) (Optionally) split into lineages based on Pangolin typing to relieve some of the burden on tree building
+5) Merge GISAID and REDCap alignments.
+
+6) Split into lineages based on Pangolin typing to relieve some of the burden on tree building. (optional)
 
 7) Build a Fasttree maximum likelihood tree (for each lineage if so defined):
 
@@ -137,11 +141,35 @@ The following are keys in the config.yaml file which require values for the pipe
 FastTreeMP -nosupport -nt <sequences.fasta> > <output.tree>
 ```
 
-8) If split, graft together the subtrees into a complete tree
+8) If split, graft together the subtrees into a complete tree.
 
-9) Define and extract UK clusters using `cluster-funk`
+9) Define and extract UK clusters using `cluster-funk`.
 
-10) Build reports
+10) Build reports.
+
+
+### `Rules`
+
+`0 - preprocess_gisaid`
+> Input GISAID data is cleaned, aligned and lineage typed (for sequences which don't already have a lineage designation)..
+
+`1 - preprocess_redcap`
+> Input REDCap data is cleaned and aligned.
+
+`2 - pangolin_lineage_typing`
+> Cleaned and aligned REDCap data is lineage typed.
+
+`3 - combine_gisaid_and_redcap`
+> Processed GISAID and REDCap data are combined.
+
+`4 - make_trees`
+> Sequences are split into outgroups, if they are provided, and a phylogenetic tree is generated.
+> Ancestral state reconstruction is also carried out.
+
+`5 - define_redcap_lineages_and_cut_out_trees`
+> Tree is annotated with clusters from ancestral state reconstruction.
+> Sub-trees with >=3 sequences in a cluster are cut out and phylotyped.
+> Full tree is annotated with phylotypes.
 
 
 ## Outputs
