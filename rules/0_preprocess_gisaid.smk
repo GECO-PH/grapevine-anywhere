@@ -1,7 +1,8 @@
-#adds pangolin info from previous run and adds to current
+#takes pangolin info from previous run and adds to starting gisaid metadata.
 #this means blank pangolin assignments in input metadata
-#don't have to be reassigned every run
-#assumes previous gisaid lineages exists
+#don't have to be reassigned every run.
+#if it's the first run and previous_lineages doesn't exist,
+#the input metadata is output with no changes
 rule gisaid_add_previous_lineages:
     input:
         metadata = config["gisaid_meta"],

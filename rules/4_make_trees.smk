@@ -275,7 +275,6 @@ rule step_4_annotate_tree:
 #         """
 
 
-#COUNTRYHERE
 rule deltran_ancestral_reconstruction:
     input:
         tree = rules.step_4_annotate_tree.output.tree
