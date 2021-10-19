@@ -183,7 +183,7 @@ rule gisaid_get_variants:
             --outfile {output.variants} &>> {log}
 
         head -n1 {output.variants} > {output.global_variants}
-        tail -n+2 {output.variants} | grep -v -E "^{params.country}" >> {output.global_variants}
+        tail -n+2 {output.variants} | grep -v -i "^hCoV-19/{params.country}" >> {output.global_variants}
         """
 
 
