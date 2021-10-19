@@ -702,19 +702,19 @@ rule redcap_filter_omitted_sequences:
 
 rule redcap_full_untrimmed_alignment:
     input:
-        sam = rules.redcap_minimap2_to_reference.output.sam,
-        reference = config["reference_fasta"],
+        sam = rules.redcap_minimap2_to_reference.output.sam
     output:
         fasta = config["output_path"] + "/1/redcap_latest.unify_headers.epi_week.deduplicated.alignment.full.fasta"
+    threads: 8
     log:
         config["output_path"] + "/logs/1_redcap_full_untrimmed_alignment.log"
     shell:
         """
-        datafunk sam_2_fasta \
-          -s {input.sam} \
-          -r {input.reference} \
-          -o {output.fasta} \
-          &> {log}
+        gofasta sam toMultiAlign \
+        -t {threads} \
+        -s {input.sam} \
+        -o {output.fasta} \
+        &> {log}
         """
 
 
