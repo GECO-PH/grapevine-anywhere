@@ -40,7 +40,7 @@ rule add_gisaid_outgroups:
         import pandas as pd
         from Bio import SeqIO
 
-        gisaid_meta_df = pd.read_csv(input.metadata, sep="\t")
+        gisaid_meta_df = pd.read_csv(input.metadata, sep=",")
         outgroup_meta_df = pd.read_csv(input.outgroups_metadata, sep="\t")
 
         combine = [gisaid_meta_df, outgroup_meta_df]
@@ -847,7 +847,7 @@ rule check_root_pangolin_lineages:
 
         roots = []
         for i,row in lineage_splits.iterrows():
-            roots.append(row["outgroup"])
+            roots.append("hCoV-19/" + row["outgroup"])
 
         df = pd.read_csv(input.metadata)
 
@@ -855,7 +855,7 @@ rule check_root_pangolin_lineages:
             f.write("root\tlineage\n")
             for i,row in df.iterrows():
                 if row["strain"] in roots:
-                    f.write(row["strain"] + "\t" + row["lineage"] + "\n")
+                    f.write(row["strain"] + "\t" + row["pango_lineage"] + "\n")
 
 
 #cp {input.counts} {params.published_counts} <- was causing issues
