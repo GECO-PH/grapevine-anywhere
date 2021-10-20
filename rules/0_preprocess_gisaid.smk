@@ -238,14 +238,16 @@ rule gisaid_mask:
     input:
         fasta = rules.gisaid_filter_2.output.fasta,
         mask = config["gisaid_mask_file"]
+    params:
+        script = os.path.join(workflow.current_basedir, "../utilities/datafunk_mask.py")
     output:
         fasta = config["output_path"] + "/0/gisaid.RD.UH.filt.mapped.filt2.masked.fasta"
     shell:
         """
-        datafunk mask \
-          --input-fasta {input.fasta} \
-          --output-fasta {output.fasta} \
-          --mask-file \"{input.mask}\"
+        python {params.script} \
+          {input.fasta} \
+          {output.fasta} \
+          {input.mask}
         """
 
 

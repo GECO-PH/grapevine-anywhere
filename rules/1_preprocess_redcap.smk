@@ -645,16 +645,18 @@ rule redcap_mask_1:
     input:
         fasta = rules.redcap_remove_insertions_and_trim_and_pad.output.fasta,
         mask = config["redcap_mask_file"]
+    params:
+        script = os.path.join(workflow.current_basedir, "../utilities/datafunk_mask.py")
     output:
         fasta = config["output_path"] + "/1/redcap_latest.unify_headers.epi_week.deduplicated.alignment.trimmed.masked.fasta",
     log:
         config["output_path"] + "/logs/1_redcap_mask_1.log"
     shell:
         """
-        datafunk mask \
-          --input-fasta {input.fasta} \
-          --output-fasta {output.fasta} \
-          --mask-file \"{input.mask}\" 2> {log}
+        python {params.script} \
+          {input.fasta} \
+          {output.fasta} \
+          {input.mask} 2> {log}
         """
 
 
@@ -723,16 +725,18 @@ rule redcap_mask_2:
     input:
         fasta = rules.redcap_full_untrimmed_alignment.output.fasta,
         mask = config["redcap_mask_file"]
+    params:
+        script = os.path.join(workflow.current_basedir, "../utilities/datafunk_mask.py")
     output:
         fasta = config["output_path"] + "/1/redcap_latest.unify_headers.epi_week.deduplicated.alignment.full.masked.fasta"
     log:
         config["output_path"] + "/logs/1_redcap_mask_2.log"
     shell:
         """
-        datafunk mask \
-          --input-fasta {input.fasta} \
-          --output-fasta {output.fasta} \
-          --mask-file \"{input.mask}\" 2> {log}
+        python {params.script} \
+          {input.fasta} \
+          {output.fasta} \
+          {input.mask} 2> {log}
         """
 
 
