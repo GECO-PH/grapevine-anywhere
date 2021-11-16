@@ -409,7 +409,7 @@ rule output_annotations:
         """
 
 
-#currently all_traits file will have an empty country lineage column
+#all_traits file may have empty country lineage values or value which doesn't match del_lineage
 #country lineage will be based on del_lineage column
 rule add_lin_to_annotations:
     input:
