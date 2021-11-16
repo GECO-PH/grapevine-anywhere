@@ -116,6 +116,7 @@ rule update_lineage_metadata:
           --index-column strain \
           --join-on taxon \
           --new-columns {params.country_code}_cluster microreact_lineage \
+          --where-column {params.country_code}_cluster={params.country_code}_lineage \
           --out-metadata {output.all_metadata} &> {log}
         """
 
@@ -345,7 +346,7 @@ rule combine_phylotypes_csv:
             """)
 
 
-#adding cluster to metadata from rule 2
+#adding cluster/lineage to metadata from rule 2
 #for import to redcap
 rule add_country_lineage_to_redcap_metadata:
     input:
@@ -365,6 +366,7 @@ rule add_country_lineage_to_redcap_metadata:
           --index-column strain \
           --join-on taxon \
           --new-columns {params.country_code}_cluster \
+          --where-column {params.country_code}_cluster={params.country_code}_lineage \
           --out-metadata {output.metadata} &>> {log}
         """
 
