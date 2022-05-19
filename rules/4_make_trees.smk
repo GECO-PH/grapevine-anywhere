@@ -411,25 +411,27 @@ rule output_annotations:
 
 #all_traits file may have empty country lineage values or value which doesn't match del_lineage
 #country lineage will be based on del_lineage column
-rule add_lin_to_annotations:
-    input:
-        traits = rules.output_annotations.output.traits
-    params:
-        country_code = config["country_code"]
-    output:
-        traits = config["output_path"] + "/4/all_traits.redcap_lin.csv"
-    log:
-        config["output_path"] + "/logs/4_add_lin_to_annotations.log"
-    run:
-        import pandas as pd
-
-        df = pd.read_csv(input.traits)
-
-        cluster_col = df['del_lineage']
-        cluster_col = [str(params.country_code)+x.split('_')[-1] if type(x) == str else float('nan') for x in cluster_col] #making list to fill out country lineage col, based on existing del_lineage col
-        df[str(params.country_code)+'_lineage'] = cluster_col
-
-        df.to_csv(output.traits, index=False)
+#turns out this was interfering with what the curate lineages script is supposed to do.
+#this rule can probably be deleted.
+#rule add_lin_to_annotations:
+#    input:
+#        traits = rules.output_annotations.output.traits
+#    params:
+#        country_code = config["country_code"]
+#    output:
+#        traits = config["output_path"] + "/4/all_traits.redcap_lin.csv"
+#    log:
+#        config["output_path"] + "/logs/4_add_lin_to_annotations.log"
+#    run:
+#        import pandas as pd
+#
+#        df = pd.read_csv(input.traits)
+#
+#        cluster_col = df['del_lineage']
+#        cluster_col = [str(params.country_code)+x.split('_')[-1] if type(x) == str else float('nan') for x in cluster_col] #making list to fill out country lineage col, based on existing del_lineage col
+#        df[str(params.country_code)+'_lineage'] = cluster_col
+#
+#        df.to_csv(output.traits, index=False)
 
 
 #        echo '{{"text":"' > 4b_data.json

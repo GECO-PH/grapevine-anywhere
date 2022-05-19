@@ -9,7 +9,7 @@ for i,row in LINEAGES_df.iterrows():
 
 rule merge_and_create_new_redcap_lineages:
     input:
-        rules.add_lin_to_annotations.output.traits
+        rules.output_annotations.output.traits
     params:
         script = os.path.join(workflow.current_basedir, "../utilities/curate_lineages.py"),
         country = config["country"],
@@ -366,7 +366,6 @@ rule add_country_lineage_to_redcap_metadata:
           --index-column strain \
           --join-on taxon \
           --new-columns {params.country_code}_cluster \
-          --where-column {params.country_code}_cluster={params.country_code}_lineage \
           --out-metadata {output.metadata} &>> {log}
         """
 
